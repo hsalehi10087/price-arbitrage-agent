@@ -1,0 +1,30 @@
+name: Price Arbitrage Daily Agent
+
+on:
+  schedule:
+    # هر ۱ ساعت — ۲۴ بار در روز
+    - cron: '0 * * * *'
+  workflow_dispatch:  # اجرای دستی از GitHub UI
+
+jobs:
+  arbitrage-scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run Price Arbitrage Agent
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python main.py

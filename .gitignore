@@ -1,0 +1,5 @@
+__pycache__/
+*.pyc
+*.pyo
+.env
+best_idea_today.json
