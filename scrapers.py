@@ -141,10 +141,9 @@ def get_usd_to_irr() -> float:
     ۰. GitHub Secret USD_IRR_RATE (همیشه دقیق)
     ۱. کانال تلگرام @NerkhDollarIRT (نرخ لحظه‌ای تهران)
     ۲. کانال تلگرام @DO_L4 (4.4M subscriber)
-    ۳. bonbast.com
-    ۴. bonbast API
-    ۵. navasan.tech
-    ۶. fallback ثابت: ۲۷۰,۰۰۰ تومان
+    ۳. bonbast API
+    ۴. navasan.tech
+    ۵. fallback ثابت: ۲۷۰,۰۰۰ تومان
     """
     import os
 
@@ -178,20 +177,7 @@ def get_usd_to_irr() -> float:
     except Exception as e:
         logger.debug(f"@DO_L4 error: {e}")
 
-    # روش ۳: bonbast.com
-    try:
-        resp = _safe_get("https://bonbast.com/", timeout=15)
-        if resp:
-            match = re.search(r'"usd1":\s*"?(\d{4,8})"?', resp.text)
-            if match:
-                rate = int(match.group(1)) * 10  # تومان → ریال
-                if 1_000_000 < rate < 50_000_000:
-                    logger.info(f"USD rate from bonbast: {rate:,} IRR")
-                    return float(rate)
-    except Exception as e:
-        logger.error(f"bonbast error: {e}")
-
-    # روش ۴: bonbast API
+    # روش ۳: bonbast API
     try:
         resp2 = _safe_get("https://api.bonbast.com/latest", timeout=10,
                           headers={"Accept": "application/json"})
