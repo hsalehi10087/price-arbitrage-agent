@@ -116,12 +116,56 @@ def get_usd_to_irr() -> float:
     except Exception as e:
         logger.debug(f"bonbast API error: {e}")
 
-    # روش ۳: navasan.tech (API رایگان برای نرخ ارز ایران)
+    # روش ۳: tgju.org — معتبرترین منبع نرخ لحظه‌ای بازار آزاد ایران
     try:
-        resp3 = _safe_get("https://api.navasan.tech/latest/?api_key=free&item=usd_buy",
-                          timeout=10, headers={"Accept": "application/json"})
+        resp3 = _safe_get(
+            "https://api.tgju.org/v1/market/indicator/summary-table-data/price_dollar_rl",
+            timeout=10,
+            headers={"Accept": "application/json", "Referer": "https://www.tgju.org/"}
+        )
         if resp3:
             data = resp3.json()
+            # فرمت: {"data": [{"p": "2703650", ...}, ...]}
+            rows = data.get("data", [])
+            if rows:
+                price_str = rows[0].get("p") or rows[0].get("price") or rows[0].get("0")
+                if price_str:
+                    rate = float(str(price_str).replace(",", ""))
+                    if 1_000_000 < rate < 50_000_000:
+                        logger.info(f"USD rate from tgju (API): {rate:,.0f} IRR ({rate/10:,.0f} تومان)")
+                        return rate
+    except Exception as e:
+        logger.debug(f"tgju API error: {e}")
+
+    # روش ۴: tgju.org — HTML scraping (fallback از API)
+    try:
+        resp4 = _safe_get(
+            "https://www.tgju.org/profile/price_dollar_rl",
+            timeout=12,
+            headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+        )
+        if resp4:
+            # قیمت در تگ‌هایی مثل: data-price="2703650" یا <span class="info-price">2,703,650</span>
+            match = re.search(r'data-price=["\'](\d{6,9})["\']', resp4.text)
+            if not match:
+                match = re.search(r'"p"\s*:\s*"(\d{6,9})"', resp4.text)
+            if not match:
+                # جستجو در متن عددی ریال — عدد ۷ رقمی که نرخ دلار در ریال است
+                match = re.search(r'(\b2[5-9]\d{5}\b|\b[3-9]\d{6}\b)', resp4.text)
+            if match:
+                rate = float(match.group(1))
+                if 1_000_000 < rate < 50_000_000:
+                    logger.info(f"USD rate from tgju (HTML): {rate:,.0f} IRR ({rate/10:,.0f} تومان)")
+                    return rate
+    except Exception as e:
+        logger.debug(f"tgju HTML error: {e}")
+
+    # روش ۵: navasan.tech
+    try:
+        resp5 = _safe_get("https://api.navasan.tech/latest/?api_key=free&item=usd_buy",
+                          timeout=10, headers={"Accept": "application/json"})
+        if resp5:
+            data = resp5.json()
             value = data.get("usd_buy", {}).get("value")
             if value:
                 rate = float(str(value).replace(",", "")) * 10  # تومان → ریال
