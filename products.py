@@ -1,7 +1,8 @@
 """
 لیست کالاهای رصد روزانه — ۴۰ کالا در ۸ دسته
 هر کالا دارای: نام فارسی، کوئری انگلیسی برای سایت‌های خارجی، کوئری فارسی برای سایت‌های ایرانی
-ali_price_usd_fallback: قیمت واقعی AliExpress (به‌روز شده آبان ۱۴۰۳ / نوامبر ۲۰۲۴) — fallback وقتی scraping کار نمی‌کند
+ali_price_usd_fallback: قیمت واقعی AliExpress (به‌روز شده آذر ۱۴۰۵ / نوامبر ۲۰۲۶) — fallback وقتی scraping کار نمی‌کند
+iran_price_toman_fallback: قیمت بازار ایران به تومان (آذر ۱۴۰۵ — دلار ۲۷۰ هزار تومان) — fallback وقتی Torob/Digikala بلاک است
 ebay_query: کوئری بهینه‌شده برای جستجو در eBay
 """
 
@@ -14,7 +15,8 @@ PRODUCTS = [
         "ebay_query": "bluetooth earphone wireless earbud TWS",
         "query_fa": "هندزفری بلوتوث",
         "category": "الکترونیک",
-        "ali_price_usd_fallback": 4.5,   # TWS earbuds basic on AliExpress
+        "ali_price_usd_fallback": 4.5,          # TWS earbuds basic on AliExpress
+        "iran_price_toman_fallback": 850_000,    # هندزفری بلوتوث معمولی در ایران ~۸۵۰ هزار تومان
     },
     {
         "id": "smartwatch",
@@ -23,7 +25,8 @@ PRODUCTS = [
         "ebay_query": "smartwatch fitness tracker heart rate",
         "query_fa": "ساعت هوشمند",
         "category": "الکترونیک",
-        "ali_price_usd_fallback": 12.0,  # basic smartwatch / fitness band
+        "ali_price_usd_fallback": 12.0,          # basic smartwatch / fitness band
+        "iran_price_toman_fallback": 2_800_000,  # ساعت هوشمند ارزان در ایران ~۲.۸ میلیون تومان
     },
     {
         "id": "powerbank",
@@ -32,7 +35,8 @@ PRODUCTS = [
         "ebay_query": "power bank 10000mah portable charger",
         "query_fa": "پاوربانک ۱۰۰۰۰",
         "category": "الکترونیک",
-        "ali_price_usd_fallback": 8.0,   # 10000mAh powerbank
+        "ali_price_usd_fallback": 8.0,           # 10000mAh powerbank
+        "iran_price_toman_fallback": 1_800_000,  # پاوربانک ۱۰۰۰۰ در ایران ~۱.۸ میلیون تومان
     },
     {
         "id": "usb_hub",
@@ -41,7 +45,8 @@ PRODUCTS = [
         "ebay_query": "usb c hub 7 in 1 multiport adapter",
         "query_fa": "هاب USB",
         "category": "الکترونیک",
-        "ali_price_usd_fallback": 9.5,   # 7-in-1 USB-C hub
+        "ali_price_usd_fallback": 9.5,           # 7-in-1 USB-C hub
+        "iran_price_toman_fallback": 2_200_000,  # هاب USB-C در ایران ~۲.۲ میلیون تومان
     },
     {
         "id": "webcam",
@@ -50,7 +55,8 @@ PRODUCTS = [
         "ebay_query": "webcam 1080p hd computer camera",
         "query_fa": "وب کم",
         "category": "الکترونیک",
-        "ali_price_usd_fallback": 11.0,  # 1080p webcam with microphone
+        "ali_price_usd_fallback": 11.0,          # 1080p webcam with microphone
+        "iran_price_toman_fallback": 2_500_000,  # وب‌کم ۱۰۸۰p در ایران ~۲.۵ میلیون تومان
     },
     {
         "id": "rgb_mouse",
@@ -59,7 +65,8 @@ PRODUCTS = [
         "ebay_query": "rgb gaming mouse wired optical",
         "query_fa": "ماوس گیمینگ",
         "category": "الکترونیک",
-        "ali_price_usd_fallback": 7.0,   # RGB gaming mouse wired
+        "ali_price_usd_fallback": 7.0,           # RGB gaming mouse wired
+        "iran_price_toman_fallback": 1_600_000,  # ماوس گیمینگ ارزان در ایران ~۱.۶ میلیون تومان
     },
     {
         "id": "mechanical_kb",
@@ -68,7 +75,8 @@ PRODUCTS = [
         "ebay_query": "mechanical keyboard gaming rgb tenkeyless",
         "query_fa": "کیبورد مکانیکال",
         "category": "الکترونیک",
-        "ali_price_usd_fallback": 25.0,  # mechanical keyboard basic
+        "ali_price_usd_fallback": 25.0,          # mechanical keyboard basic
+        "iran_price_toman_fallback": 7_500_000,  # کیبورد مکانیکال ارزان در ایران ~۷.۵ میلیون تومان
     },
     {
         "id": "phone_holder",
@@ -77,7 +85,8 @@ PRODUCTS = [
         "ebay_query": "car phone mount magnetic dashboard",
         "query_fa": "هولدر موبایل ماشین",
         "category": "الکترونیک",
-        "ali_price_usd_fallback": 2.5,   # magnetic car phone holder
+        "ali_price_usd_fallback": 2.5,           # magnetic car phone holder
+        "iran_price_toman_fallback": 350_000,    # هولدر موبایل ماشینی در ایران ~۳۵۰ هزار تومان
     },
 
     # ───── لوازم خانگی و آشپزخانه ─────
@@ -88,7 +97,8 @@ PRODUCTS = [
         "ebay_query": "air purifier hepa filter desktop room",
         "query_fa": "تصفیه هوا",
         "category": "خانگی",
-        "ali_price_usd_fallback": 28.0,  # desktop HEPA air purifier
+        "ali_price_usd_fallback": 28.0,          # desktop HEPA air purifier
+        "iran_price_toman_fallback": 9_500_000,  # تصفیه هوا رومیزی در ایران ~۹.۵ میلیون تومان
     },
     {
         "id": "electric_kettle",
@@ -97,7 +107,8 @@ PRODUCTS = [
         "ebay_query": "electric kettle 1.7l stainless steel",
         "query_fa": "کتری برقی",
         "category": "خانگی",
-        "ali_price_usd_fallback": 14.0,  # 1.7L stainless kettle
+        "ali_price_usd_fallback": 14.0,          # 1.7L stainless kettle
+        "iran_price_toman_fallback": 2_800_000,  # کتری برقی استیل در ایران ~۲.۸ میلیون تومان
     },
     {
         "id": "food_scale",
@@ -106,7 +117,8 @@ PRODUCTS = [
         "ebay_query": "digital kitchen food scale 5kg lcd",
         "query_fa": "ترازوی آشپزخانه",
         "category": "خانگی",
-        "ali_price_usd_fallback": 5.5,   # digital kitchen scale
+        "ali_price_usd_fallback": 5.5,           # digital kitchen scale
+        "iran_price_toman_fallback": 850_000,    # ترازوی آشپزخانه دیجیتال در ایران ~۸۵۰ هزار تومان
     },
     {
         "id": "vacuum_mini",
@@ -115,7 +127,8 @@ PRODUCTS = [
         "ebay_query": "handheld mini vacuum cleaner cordless",
         "query_fa": "جاروبرقی کوچک",
         "category": "خانگی",
-        "ali_price_usd_fallback": 18.0,  # cordless handheld vacuum
+        "ali_price_usd_fallback": 18.0,          # cordless handheld vacuum
+        "iran_price_toman_fallback": 4_500_000,  # جاروبرقی دستی شارژی در ایران ~۴.۵ میلیون تومان
     },
     {
         "id": "led_strip",
@@ -124,7 +137,8 @@ PRODUCTS = [
         "ebay_query": "smart led strip light 5m rgb wifi app",
         "query_fa": "نوار ال ای دی",
         "category": "خانگی",
-        "ali_price_usd_fallback": 8.0,   # 5m smart RGB LED strip
+        "ali_price_usd_fallback": 8.0,           # 5m smart RGB LED strip
+        "iran_price_toman_fallback": 1_500_000,  # نوار LED هوشمند ۵ متری در ایران ~۱.۵ میلیون تومان
     },
     {
         "id": "towel_warmer",
@@ -133,7 +147,8 @@ PRODUCTS = [
         "ebay_query": "electric towel warmer rack bathroom",
         "query_fa": "گرمکن حوله",
         "category": "خانگی",
-        "ali_price_usd_fallback": 35.0,  # electric towel warmer rack
+        "ali_price_usd_fallback": 35.0,           # electric towel warmer rack
+        "iran_price_toman_fallback": 12_000_000,  # گرمکن حوله برقی در ایران ~۱۲ میلیون تومان
     },
 
     # ───── ابزار و DIY ─────
@@ -144,7 +159,8 @@ PRODUCTS = [
         "ebay_query": "cordless drill screwdriver set rechargeable",
         "query_fa": "دریل شارژی",
         "category": "ابزار",
-        "ali_price_usd_fallback": 22.0,  # cordless drill set with bits
+        "ali_price_usd_fallback": 22.0,          # cordless drill set with bits
+        "iran_price_toman_fallback": 6_500_000,  # دریل شارژی در ایران ~۶.۵ میلیون تومان
     },
     {
         "id": "multimeter",
@@ -153,7 +169,8 @@ PRODUCTS = [
         "ebay_query": "digital multimeter professional auto range",
         "query_fa": "مولتی متر",
         "category": "ابزار",
-        "ali_price_usd_fallback": 12.0,  # digital multimeter
+        "ali_price_usd_fallback": 12.0,          # digital multimeter
+        "iran_price_toman_fallback": 1_800_000,  # مولتی‌متر دیجیتال در ایران ~۱.۸ میلیون تومان
     },
     {
         "id": "tool_set",
@@ -162,7 +179,8 @@ PRODUCTS = [
         "ebay_query": "tool kit set home repair 46 piece",
         "query_fa": "جعبه ابزار",
         "category": "ابزار",
-        "ali_price_usd_fallback": 20.0,  # complete home tool kit
+        "ali_price_usd_fallback": 20.0,          # complete home tool kit
+        "iran_price_toman_fallback": 5_500_000,  # جعبه‌ابزار کامل در ایران ~۵.۵ میلیون تومان
     },
     {
         "id": "laser_level",
@@ -171,7 +189,8 @@ PRODUCTS = [
         "ebay_query": "laser level self leveling cross line",
         "query_fa": "تراز لیزری",
         "category": "ابزار",
-        "ali_price_usd_fallback": 15.0,  # self-leveling laser level
+        "ali_price_usd_fallback": 15.0,          # self-leveling laser level
+        "iran_price_toman_fallback": 4_200_000,  # تراز لیزری در ایران ~۴.۲ میلیون تومان
     },
 
     # ───── پوشاک و کفش ─────
@@ -182,7 +201,8 @@ PRODUCTS = [
         "ebay_query": "running sneakers men sport shoes lightweight",
         "query_fa": "کتانی ورزشی",
         "category": "پوشاک",
-        "ali_price_usd_fallback": 18.0,  # running shoes basic
+        "ali_price_usd_fallback": 18.0,          # running shoes basic
+        "iran_price_toman_fallback": 4_500_000,  # کتانی ورزشی در ایران ~۴.۵ میلیون تومان
     },
     {
         "id": "leather_wallet",
@@ -191,7 +211,8 @@ PRODUCTS = [
         "ebay_query": "genuine leather wallet slim men bifold",
         "query_fa": "کیف پول چرمی",
         "category": "پوشاک",
-        "ali_price_usd_fallback": 6.0,   # slim leather wallet
+        "ali_price_usd_fallback": 6.0,           # slim leather wallet
+        "iran_price_toman_fallback": 850_000,    # کیف پول چرمی در ایران ~۸۵۰ هزار تومان
     },
     {
         "id": "winter_jacket",
@@ -200,7 +221,8 @@ PRODUCTS = [
         "ebay_query": "men winter jacket waterproof quilted puffer",
         "query_fa": "کاپشن مردانه",
         "category": "پوشاک",
-        "ali_price_usd_fallback": 30.0,  # winter puffer jacket
+        "ali_price_usd_fallback": 30.0,           # winter puffer jacket
+        "iran_price_toman_fallback": 12_000_000,  # کاپشن زمستانه در ایران ~۱۲ میلیون تومان
     },
     {
         "id": "sunglasses",
@@ -209,7 +231,8 @@ PRODUCTS = [
         "ebay_query": "polarized sunglasses men uv400 driving",
         "query_fa": "عینک آفتابی",
         "category": "پوشاک",
-        "ali_price_usd_fallback": 5.0,   # polarized sunglasses
+        "ali_price_usd_fallback": 5.0,           # polarized sunglasses
+        "iran_price_toman_fallback": 950_000,    # عینک آفتابی پلاریزه در ایران ~۹۵۰ هزار تومان
     },
 
     # ───── سلامت و زیبایی ─────
@@ -220,7 +243,8 @@ PRODUCTS = [
         "ebay_query": "professional hair dryer 2000w ionic salon",
         "query_fa": "سشوار",
         "category": "زیبایی",
-        "ali_price_usd_fallback": 16.0,  # 2000W hair dryer
+        "ali_price_usd_fallback": 16.0,          # 2000W hair dryer
+        "iran_price_toman_fallback": 3_500_000,  # سشوار حرفه‌ای در ایران ~۳.۵ میلیون تومان
     },
     {
         "id": "electric_razor",
@@ -229,7 +253,8 @@ PRODUCTS = [
         "ebay_query": "electric shaver razor men rechargeable rotary",
         "query_fa": "ریش تراش برقی",
         "category": "زیبایی",
-        "ali_price_usd_fallback": 14.0,  # rotary electric shaver
+        "ali_price_usd_fallback": 14.0,          # rotary electric shaver
+        "iran_price_toman_fallback": 3_200_000,  # ریش‌تراش برقی در ایران ~۳.۲ میلیون تومان
     },
     {
         "id": "massage_gun",
@@ -238,7 +263,8 @@ PRODUCTS = [
         "ebay_query": "massage gun deep tissue percussion muscle",
         "query_fa": "ماساژ گان",
         "category": "زیبایی",
-        "ali_price_usd_fallback": 22.0,  # percussion massage gun
+        "ali_price_usd_fallback": 22.0,          # percussion massage gun
+        "iran_price_toman_fallback": 7_500_000,  # ماساژ گان در ایران ~۷.۵ میلیون تومان
     },
     {
         "id": "blood_pressure",
@@ -247,7 +273,8 @@ PRODUCTS = [
         "ebay_query": "digital blood pressure monitor upper arm automatic",
         "query_fa": "فشارسنج دیجیتال",
         "category": "سلامت",
-        "ali_price_usd_fallback": 16.0,  # upper arm BP monitor
+        "ali_price_usd_fallback": 16.0,          # upper arm BP monitor
+        "iran_price_toman_fallback": 3_800_000,  # فشارسنج بازویی در ایران ~۳.۸ میلیون تومان
     },
     {
         "id": "oximeter",
@@ -256,7 +283,8 @@ PRODUCTS = [
         "ebay_query": "pulse oximeter fingertip blood oxygen spo2",
         "query_fa": "اکسیمتر",
         "category": "سلامت",
-        "ali_price_usd_fallback": 5.0,   # fingertip pulse oximeter
+        "ali_price_usd_fallback": 5.0,           # fingertip pulse oximeter
+        "iran_price_toman_fallback": 650_000,    # اکسیمتر انگشتی در ایران ~۶۵۰ هزار تومان
     },
 
     # ───── ورزش و فیتنس ─────
@@ -267,7 +295,8 @@ PRODUCTS = [
         "ebay_query": "resistance band set fitness exercise loop",
         "query_fa": "باند مقاومتی ورزشی",
         "category": "ورزش",
-        "ali_price_usd_fallback": 5.0,   # resistance band set 5 levels
+        "ali_price_usd_fallback": 5.0,           # resistance band set 5 levels
+        "iran_price_toman_fallback": 650_000,    # ست باند مقاومتی در ایران ~۶۵۰ هزار تومان
     },
     {
         "id": "yoga_mat",
@@ -276,7 +305,8 @@ PRODUCTS = [
         "ebay_query": "yoga mat non slip 6mm thick exercise fitness",
         "query_fa": "مت یوگا",
         "category": "ورزش",
-        "ali_price_usd_fallback": 8.0,   # 6mm non-slip yoga mat
+        "ali_price_usd_fallback": 8.0,           # 6mm non-slip yoga mat
+        "iran_price_toman_fallback": 1_200_000,  # مت یوگا ۶ میلی در ایران ~۱.۲ میلیون تومان
     },
     {
         "id": "jump_rope",
@@ -285,7 +315,8 @@ PRODUCTS = [
         "ebay_query": "digital jump rope counter timer skipping",
         "query_fa": "طناب ورزشی",
         "category": "ورزش",
-        "ali_price_usd_fallback": 4.0,   # digital counter jump rope
+        "ali_price_usd_fallback": 4.0,           # digital counter jump rope
+        "iran_price_toman_fallback": 450_000,    # طناب ورزشی دیجیتال در ایران ~۴۵۰ هزار تومان
     },
     {
         "id": "water_bottle",
@@ -294,7 +325,8 @@ PRODUCTS = [
         "ebay_query": "insulated stainless steel water bottle 500ml",
         "query_fa": "بطری آب ورزشی",
         "category": "ورزش",
-        "ali_price_usd_fallback": 6.0,   # insulated stainless bottle
+        "ali_price_usd_fallback": 6.0,           # insulated stainless bottle
+        "iran_price_toman_fallback": 850_000,    # بطری آب استیل در ایران ~۸۵۰ هزار تومان
     },
 
     # ───── کودک و آموزشی ─────
@@ -305,7 +337,8 @@ PRODUCTS = [
         "ebay_query": "building blocks lego compatible set children",
         "query_fa": "لگو",
         "category": "کودک",
-        "ali_price_usd_fallback": 10.0,  # Lego-compatible block set large
+        "ali_price_usd_fallback": 10.0,          # Lego-compatible block set large
+        "iran_price_toman_fallback": 1_800_000,  # ست لگو بزرگ در ایران ~۱.۸ میلیون تومان
     },
     {
         "id": "slime_kit",
@@ -314,7 +347,8 @@ PRODUCTS = [
         "ebay_query": "slime kit diy children making set",
         "query_fa": "کیت اسلایم",
         "category": "کودک",
-        "ali_price_usd_fallback": 5.0,   # DIY slime kit with supplies
+        "ali_price_usd_fallback": 5.0,           # DIY slime kit with supplies
+        "iran_price_toman_fallback": 650_000,    # کیت اسلایم در ایران ~۶۵۰ هزار تومان
     },
     {
         "id": "science_kit",
@@ -323,7 +357,8 @@ PRODUCTS = [
         "ebay_query": "science experiment kit children educational stem",
         "query_fa": "کیت آزمایشگاهی",
         "category": "کودک",
-        "ali_price_usd_fallback": 12.0,  # children science experiment kit
+        "ali_price_usd_fallback": 12.0,          # children science experiment kit
+        "iran_price_toman_fallback": 2_500_000,  # کیت آزمایشگاهی در ایران ~۲.۵ میلیون تومان
     },
 
     # ───── خودرو ─────
@@ -334,7 +369,8 @@ PRODUCTS = [
         "ebay_query": "dash cam car 1080p front rear wifi",
         "query_fa": "دوربین خودرو داشبورد",
         "category": "خودرو",
-        "ali_price_usd_fallback": 20.0,  # 1080p dashcam front+rear
+        "ali_price_usd_fallback": 20.0,          # 1080p dashcam front+rear
+        "iran_price_toman_fallback": 5_500_000,  # دوربین داشبورد در ایران ~۵.۵ میلیون تومان
     },
     {
         "id": "obd2_scanner",
@@ -343,7 +379,8 @@ PRODUCTS = [
         "ebay_query": "obd2 scanner bluetooth car diagnostic elm327",
         "query_fa": "دیاگ خودرو",
         "category": "خودرو",
-        "ali_price_usd_fallback": 5.0,   # ELM327 OBD2 bluetooth scanner
+        "ali_price_usd_fallback": 5.0,           # ELM327 OBD2 bluetooth scanner
+        "iran_price_toman_fallback": 850_000,    # دیاگ OBD2 بلوتوث در ایران ~۸۵۰ هزار تومان
     },
     {
         "id": "tire_inflator",
@@ -352,7 +389,8 @@ PRODUCTS = [
         "ebay_query": "portable tire inflator air pump 12v car",
         "query_fa": "کمپرسور تایر خودرو",
         "category": "خودرو",
-        "ali_price_usd_fallback": 18.0,  # portable 12V tire inflator
+        "ali_price_usd_fallback": 18.0,          # portable 12V tire inflator
+        "iran_price_toman_fallback": 4_500_000,  # کمپرسور تایر خودرو در ایران ~۴.۵ میلیون تومان
     },
     {
         "id": "car_polish",
@@ -361,7 +399,8 @@ PRODUCTS = [
         "ebay_query": "car wax polish ceramic coating liquid spray",
         "query_fa": "واکس خودرو",
         "category": "خودرو",
-        "ali_price_usd_fallback": 8.0,   # ceramic coating spray wax
+        "ali_price_usd_fallback": 8.0,           # ceramic coating spray wax
+        "iran_price_toman_fallback": 1_200_000,  # واکس سرامیک خودرو در ایران ~۱.۲ میلیون تومان
     },
     {
         "id": "seat_cover",
@@ -370,6 +409,7 @@ PRODUCTS = [
         "ebay_query": "car seat cover leather universal full set 5 seats",
         "query_fa": "روکش صندلی خودرو",
         "category": "خودرو",
-        "ali_price_usd_fallback": 35.0,  # full set leather-look seat covers
+        "ali_price_usd_fallback": 35.0,           # full set leather-look seat covers
+        "iran_price_toman_fallback": 11_000_000,  # روکش کامل صندلی در ایران ~۱۱ میلیون تومان
     },
 ]

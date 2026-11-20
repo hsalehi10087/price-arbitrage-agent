@@ -452,25 +452,46 @@ def get_all_prices(product: dict) -> dict:
     """
     دریافت تمام قیمت‌ها برای یک کالا
     خروجی: دیکشنری قیمت‌ها با source مشخص
+    استراتژی ایران: Torob → Digikala → iran_price_toman_fallback
+    استراتژی خارجی: eBay → AliExpress → ali_price_usd_fallback
     """
     # قیمت خارجی (eBay → AliExpress → Fallback)
     time.sleep(random.uniform(1.0, 2.5))
     ali_usd, foreign_source = get_foreign_price(product)
     time.sleep(random.uniform(0.8, 1.8))
 
-    # قیمت ایران (Torob → Digikala)
+    # قیمت ایران (Torob → Digikala → iran_price_toman_fallback)
+    iran_source = "آنلاین ایران"
     torob = get_torob_price(product["query_fa"])
     if not torob:
         time.sleep(random.uniform(0.5, 1.2))
         torob = get_digikala_price(product["query_fa"])
 
+    # اگر scraping کار نکرد، از fallback استفاده می‌کنیم
+    if not torob:
+        fallback_iran = product.get("iran_price_toman_fallback")
+        if fallback_iran:
+            torob = float(fallback_iran)
+            iran_source = "قیمت پایه ایران"
+            logger.info(f"[{product['id']}] Iran price fallback: {torob:,.0f} تومان")
+        else:
+            iran_source = "نامشخص"
+            logger.warning(f"[{product['id']}] No Iran price available (scraping failed, no fallback)")
+
     # دیوار اصفهان (جداگانه)
     time.sleep(random.uniform(0.8, 1.5))
     divar_isf = get_divar_isfahan_price(product["query_fa"])
+
+    # اگر دیوار هم بلاک بود، از iran_price_toman_fallback با کسر ۱۵٪ استفاده می‌کنیم
+    # (بازار دست دوم معمولاً ۱۰-۲۰٪ ارزان‌تر از آنلاین است)
+    if not divar_isf and torob:
+        divar_isf = torob * 0.85
+        logger.info(f"[{product['id']}] Isfahan fallback (85% of Iran online): {divar_isf:,.0f} تومان")
 
     return {
         "aliexpress_usd": ali_usd,
         "foreign_source": foreign_source,
         "iran_online_toman": torob,
+        "iran_source": iran_source,
         "isfahan_toman": divar_isf,
     }
