@@ -68,103 +68,65 @@ def _safe_get(url, timeout=20, retries=2, headers=None):
 # نرخ دلار آزاد
 # ═══════════════════════════════════════
 def _get_usd_from_telegram_channel() -> Optional[float]:
-    """قیمت دلار فردایی از کانال تلگرام «دلار و طلا» (ID: -1001882460463)
+    """قیمت دلار از کانال عمومی @DO_L4 (قیمت‌لحظه‌ای دلار طلا خودرو و سکه)
+    4.4 میلیون subscriber — کانال اصلی قیمت‌دهی لحظه‌ای دلار تهران
 
     پیام‌های کانال شبیه این هستند:
-      💸 دلار فردایی تهران 💵 271,400 خرید 💸
-      💸 دلار فردایی تهران 💵 271,450 فروش 💵 💸
+      دلار: 266,200 تومان
+      دلار فردایی تهران 💵 271,400 خرید
 
-    Bot باید عضو کانال باشد تا بتواند پیام‌ها را بخواند.
-    Channel ID: -1001882460463
+    این کانال PUBLIC است — نیاز به عضویت bot ندارد.
+    از t.me/s/DO_L4 (web preview) استفاده می‌کنیم.
     """
-    import os, json
-
-    bot_token = os.environ.get("TELEGRAM_BOT_TOKEN")
-    if not bot_token:
-        logger.debug("No TELEGRAM_BOT_TOKEN — skipping channel USD fetch")
-        return None
-
-    # Channel ID (با prefix منفی برای supergroups/channels)
-    channel_id = "-1001882460463"
-
     try:
-        # دریافت آخرین پیام‌های کانال
-        url = f"https://api.telegram.org/bot{bot_token}/getUpdates"
-        # offset=-1 آخرین update را می‌دهد
+        url = "https://t.me/s/DO_L4"
         resp = requests.get(
             url,
-            params={"limit": 50, "allowed_updates": ["channel_post"]},
-            timeout=10
+            headers={
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                "Accept-Language": "fa,en;q=0.9",
+            },
+            timeout=15,
         )
         if resp.status_code != 200:
-            logger.debug(f"Telegram getUpdates failed: {resp.status_code}")
+            logger.debug(f"t.me/s/DO_L4 failed: {resp.status_code}")
             return None
 
-        data = resp.json()
-        if not data.get("ok"):
-            logger.debug(f"Telegram API error: {data.get('description')}")
-            return None
+        text = resp.text
 
-        # جستجو در channel_posts برای کانال مورد نظر
-        updates = data.get("result", [])
+        # Pattern 1: "دلار: 266,200 تومان" یا "دلار فردایی: 266,200"
+        patterns = [
+            r'دلار\s*فردایی[^\d]*(\d{3}[,،]\d{3})',   # دلار فردایی ... 271,400
+            r'دلار\s*:\s*(\d{3}[,،]\d{3})\s*تومان',    # دلار: 266,200 تومان
+            r'دلار[^\d]{0,20}(\d{3}[,،]\d{3})',         # دلار ... 266,200
+        ]
+
         prices = []
-
-        for update in reversed(updates):  # از آخر به اول (جدیدترین اول)
-            post = update.get("channel_post") or update.get("message")
-            if not post:
-                continue
-
-            # بررسی اینکه از کانال درست آمده
-            chat = post.get("chat", {})
-            chat_id = str(chat.get("id", ""))
-            if chat_id != channel_id:
-                continue
-
-            text = post.get("text", "")
-            if not text:
-                continue
-
-            # Pattern: "دلار فردایی ... 271,400 خرید"
-            # یا: "271,400" یا "271.400" در متن
-            patterns = [
-                r'دلار[^\d]*(\d{3}[,،]\d{3})\s*خرید',
-                r'دلار[^\d]*(\d{3}[,،]\d{3})',
-                r'(\d{3}[,،]\d{3})\s*خرید',
-                r'(\d{3}[,،]\d{3})',
-            ]
-
-            for pattern in patterns:
-                match = re.search(pattern, text)
-                if match:
-                    price_str = match.group(1).replace('،', ',').replace(',', '')
-                    try:
-                        price_toman = int(price_str)
-                        # بررسی بازه معقول دلار فردایی تهران: ۱۵۰,۰۰۰ تا ۵۰۰,۰۰۰ تومان
-                        if 150_000 < price_toman < 500_000:
-                            prices.append(price_toman)
-                            logger.info(
-                                f"Telegram channel USD price found: {price_toman:,} تومان "
-                                f"(msg: {text[:60]})"
-                            )
-                            break
-                    except ValueError:
-                        pass
+        for pattern in patterns:
+            for m in re.finditer(pattern, text):
+                price_str = m.group(1).replace('،', '').replace(',', '')
+                try:
+                    price_toman = int(price_str)
+                    if 200_000 < price_toman < 500_000:
+                        prices.append(price_toman)
+                except ValueError:
+                    pass
             if prices:
-                break  # اولین قیمت معتبر را پیدا کردیم
+                break
 
         if prices:
-            rate_toman = prices[0]
+            # میانه قیمت‌های پیدا شده (برای دقت بیشتر)
+            prices.sort()
+            rate_toman = prices[len(prices) // 2]
             rate_irr = rate_toman * 10
-            logger.info(f"USD rate from Telegram channel: {rate_toman:,} تومان = {rate_irr:,} IRR")
+            logger.info(f"USD rate from @DO_L4: {rate_toman:,} تومان = {rate_irr:,} IRR")
             return float(rate_irr)
 
-        # اگر از getUpdates نشد، از forwardMessages یا getChatHistory امتحان کنیم
-        # (نیاز به bot در کانال دارد)
-        logger.debug("No USD price found in Telegram updates for the channel")
+        logger.debug("No USD price found in @DO_L4 channel")
         return None
 
     except Exception as e:
-        logger.debug(f"Telegram channel parse error: {e}")
+        logger.debug(f"@DO_L4 channel parse error: {e}")
         return None
 
 
