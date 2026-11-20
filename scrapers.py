@@ -67,9 +67,117 @@ def _safe_get(url, timeout=20, retries=2, headers=None):
 # ═══════════════════════════════════════
 # نرخ دلار آزاد
 # ═══════════════════════════════════════
+def _get_usd_from_telegram_channel() -> Optional[float]:
+    """قیمت دلار فردایی از کانال تلگرام «دلار و طلا» (ID: -1001882460463)
+
+    پیام‌های کانال شبیه این هستند:
+      💸 دلار فردایی تهران 💵 271,400 خرید 💸
+      💸 دلار فردایی تهران 💵 271,450 فروش 💵 💸
+
+    Bot باید عضو کانال باشد تا بتواند پیام‌ها را بخواند.
+    Channel ID: -1001882460463
+    """
+    import os, json
+
+    bot_token = os.environ.get("TELEGRAM_BOT_TOKEN")
+    if not bot_token:
+        logger.debug("No TELEGRAM_BOT_TOKEN — skipping channel USD fetch")
+        return None
+
+    # Channel ID (با prefix منفی برای supergroups/channels)
+    channel_id = "-1001882460463"
+
+    try:
+        # دریافت آخرین پیام‌های کانال
+        url = f"https://api.telegram.org/bot{bot_token}/getUpdates"
+        # offset=-1 آخرین update را می‌دهد
+        resp = requests.get(
+            url,
+            params={"limit": 50, "allowed_updates": ["channel_post"]},
+            timeout=10
+        )
+        if resp.status_code != 200:
+            logger.debug(f"Telegram getUpdates failed: {resp.status_code}")
+            return None
+
+        data = resp.json()
+        if not data.get("ok"):
+            logger.debug(f"Telegram API error: {data.get('description')}")
+            return None
+
+        # جستجو در channel_posts برای کانال مورد نظر
+        updates = data.get("result", [])
+        prices = []
+
+        for update in reversed(updates):  # از آخر به اول (جدیدترین اول)
+            post = update.get("channel_post") or update.get("message")
+            if not post:
+                continue
+
+            # بررسی اینکه از کانال درست آمده
+            chat = post.get("chat", {})
+            chat_id = str(chat.get("id", ""))
+            if chat_id != channel_id:
+                continue
+
+            text = post.get("text", "")
+            if not text:
+                continue
+
+            # Pattern: "دلار فردایی ... 271,400 خرید"
+            # یا: "271,400" یا "271.400" در متن
+            patterns = [
+                r'دلار[^\d]*(\d{3}[,،]\d{3})\s*خرید',
+                r'دلار[^\d]*(\d{3}[,،]\d{3})',
+                r'(\d{3}[,،]\d{3})\s*خرید',
+                r'(\d{3}[,،]\d{3})',
+            ]
+
+            for pattern in patterns:
+                match = re.search(pattern, text)
+                if match:
+                    price_str = match.group(1).replace('،', ',').replace(',', '')
+                    try:
+                        price_toman = int(price_str)
+                        # بررسی بازه معقول دلار فردایی تهران: ۱۵۰,۰۰۰ تا ۵۰۰,۰۰۰ تومان
+                        if 150_000 < price_toman < 500_000:
+                            prices.append(price_toman)
+                            logger.info(
+                                f"Telegram channel USD price found: {price_toman:,} تومان "
+                                f"(msg: {text[:60]})"
+                            )
+                            break
+                    except ValueError:
+                        pass
+            if prices:
+                break  # اولین قیمت معتبر را پیدا کردیم
+
+        if prices:
+            rate_toman = prices[0]
+            rate_irr = rate_toman * 10
+            logger.info(f"USD rate from Telegram channel: {rate_toman:,} تومان = {rate_irr:,} IRR")
+            return float(rate_irr)
+
+        # اگر از getUpdates نشد، از forwardMessages یا getChatHistory امتحان کنیم
+        # (نیاز به bot در کانال دارد)
+        logger.debug("No USD price found in Telegram updates for the channel")
+        return None
+
+    except Exception as e:
+        logger.debug(f"Telegram channel parse error: {e}")
+        return None
+
+
 def get_usd_to_irr() -> float:
-    """نرخ دلار از bonbast.com (بازار آزاد)
-    اگر block بود، از GitHub Secret یا fallback استفاده می‌کند
+    """نرخ دلار آزاد — زنجیره اولویت:
+    ۰. GitHub Secret USD_IRR_RATE (همیشه دقیق)
+    ۱. کانال تلگرام «دلار و طلا» (قیمت فردایی لحظه‌ای)
+    ۲. bonbast.com
+    ۳. bonbast API
+    ۴. tgju.org API (فیلتر نرخ نیما)
+    ۵. tgju.org HTML (فیلتر نرخ نیما)
+    ۶. navasan.tech
+    ۷. fallback ثابت: ۲۷۰,۰۰۰ تومان
     """
     import os
 
@@ -87,7 +195,15 @@ def get_usd_to_irr() -> float:
         except Exception:
             pass
 
-    # روش ۱: bonbast.com
+    # روش ۱: کانال تلگرام «دلار و طلا» (قیمت لحظه‌ای بازار فردایی تهران)
+    try:
+        tg_rate = _get_usd_from_telegram_channel()
+        if tg_rate:
+            return tg_rate
+    except Exception as e:
+        logger.debug(f"Telegram channel USD error: {e}")
+
+    # روش ۲: bonbast.com
     try:
         resp = _safe_get("https://bonbast.com/", timeout=15)
         if resp:
@@ -100,7 +216,7 @@ def get_usd_to_irr() -> float:
     except Exception as e:
         logger.error(f"bonbast error: {e}")
 
-    # روش ۲: bonbast API
+    # روش ۳: bonbast API
     try:
         resp2 = _safe_get("https://api.bonbast.com/latest", timeout=10,
                           headers={"Accept": "application/json"})
@@ -116,7 +232,7 @@ def get_usd_to_irr() -> float:
     except Exception as e:
         logger.debug(f"bonbast API error: {e}")
 
-    # روش ۳: tgju.org API — نرخ دلار آزاد
+    # روش ۴: tgju.org API — نرخ دلار آزاد
     # بازه معقول: ۱.۵ تا ۵ میلیون ریال (۱۵۰ تا ۵۰۰ هزار تومان)
     try:
         resp3 = _safe_get(
@@ -139,7 +255,7 @@ def get_usd_to_irr() -> float:
     except Exception as e:
         logger.debug(f"tgju API error: {e}")
 
-    # روش ۴: tgju.org — HTML scraping (fallback از API)
+    # روش ۵: tgju.org — HTML scraping (fallback از API)
     # نرخ دلار آزاد ایران: بازه معقول 150,000 تا 500,000 تومان = 1,500,000 تا 5,000,000 ریال
     TOMAN_MIN = 1_500_000  # حداقل ۱۵۰ هزار تومان
     TOMAN_MAX = 5_000_000  # حداکثر ۵۰۰ هزار تومان
@@ -167,7 +283,7 @@ def get_usd_to_irr() -> float:
     except Exception as e:
         logger.debug(f"tgju HTML error: {e}")
 
-    # روش ۵: navasan.tech
+    # روش ۶: navasan.tech
     try:
         resp5 = _safe_get("https://api.navasan.tech/latest/?api_key=free&item=usd_buy",
                           timeout=10, headers={"Accept": "application/json"})
