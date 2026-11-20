@@ -116,7 +116,8 @@ def get_usd_to_irr() -> float:
     except Exception as e:
         logger.debug(f"bonbast API error: {e}")
 
-    # روش ۳: tgju.org — معتبرترین منبع نرخ لحظه‌ای بازار آزاد ایران
+    # روش ۳: tgju.org API — نرخ دلار آزاد
+    # بازه معقول: ۱.۵ تا ۵ میلیون ریال (۱۵۰ تا ۵۰۰ هزار تومان)
     try:
         resp3 = _safe_get(
             "https://api.tgju.org/v1/market/indicator/summary-table-data/price_dollar_rl",
@@ -125,19 +126,23 @@ def get_usd_to_irr() -> float:
         )
         if resp3:
             data = resp3.json()
-            # فرمت: {"data": [{"p": "2703650", ...}, ...]}
             rows = data.get("data", [])
             if rows:
                 price_str = rows[0].get("p") or rows[0].get("price") or rows[0].get("0")
                 if price_str:
                     rate = float(str(price_str).replace(",", ""))
-                    if 1_000_000 < rate < 50_000_000:
+                    if 1_500_000 < rate < 5_000_000:
                         logger.info(f"USD rate from tgju (API): {rate:,.0f} IRR ({rate/10:,.0f} تومان)")
                         return rate
+                    else:
+                        logger.warning(f"tgju API rate out of expected range: {rate:,.0f} — skipping (نرخ نیما؟)")
     except Exception as e:
         logger.debug(f"tgju API error: {e}")
 
     # روش ۴: tgju.org — HTML scraping (fallback از API)
+    # نرخ دلار آزاد ایران: بازه معقول 150,000 تا 500,000 تومان = 1,500,000 تا 5,000,000 ریال
+    TOMAN_MIN = 1_500_000  # حداقل ۱۵۰ هزار تومان
+    TOMAN_MAX = 5_000_000  # حداکثر ۵۰۰ هزار تومان
     try:
         resp4 = _safe_get(
             "https://www.tgju.org/profile/price_dollar_rl",
@@ -145,18 +150,20 @@ def get_usd_to_irr() -> float:
             headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
         )
         if resp4:
-            # قیمت در تگ‌هایی مثل: data-price="2703650" یا <span class="info-price">2,703,650</span>
-            match = re.search(r'data-price=["\'](\d{6,9})["\']', resp4.text)
+            # اول data-price (قابل اعتمادترین)
+            match = re.search(r'data-price=["\'](\d{6,8})["\']', resp4.text)
             if not match:
-                match = re.search(r'"p"\s*:\s*"(\d{6,9})"', resp4.text)
+                match = re.search(r'"p"\s*:\s*"(\d{6,8})"', resp4.text)
             if not match:
-                # جستجو در متن عددی ریال — عدد ۷ رقمی که نرخ دلار در ریال است
-                match = re.search(r'(\b2[5-9]\d{5}\b|\b[3-9]\d{6}\b)', resp4.text)
+                # جستجو عدد ۷ رقمی در بازه معقول دلار آزاد (۱.۵م تا ۵م ریال)
+                match = re.search(r'\b([1-4]\d{6})\b', resp4.text)
             if match:
                 rate = float(match.group(1))
-                if 1_000_000 < rate < 50_000_000:
+                if TOMAN_MIN < rate < TOMAN_MAX:
                     logger.info(f"USD rate from tgju (HTML): {rate:,.0f} IRR ({rate/10:,.0f} تومان)")
                     return rate
+                else:
+                    logger.warning(f"tgju HTML rate out of range: {rate:,.0f} IRR — skipping")
     except Exception as e:
         logger.debug(f"tgju HTML error: {e}")
 
