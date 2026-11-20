@@ -232,8 +232,12 @@ def get_usd_to_irr() -> float:
     except Exception as e:
         logger.debug(f"bonbast API error: {e}")
 
-    # روش ۴: tgju.org API — نرخ دلار آزاد
-    # بازه معقول: ۱.۵ تا ۵ میلیون ریال (۱۵۰ تا ۵۰۰ هزار تومان)
+    # روش ۴: tgju.org API — نرخ دلار آزاد (price_dollar_rl)
+    # بازار آزاد ~270,000 تومان = 2,700,000 ریال
+    # نرخ نیما ~170,000 تومان = 1,700,000 ریال  ← باید رد شود
+    # بازه معتبر: 2,000,000 تا 5,000,000 ریال (200,000 تا 500,000 تومان)
+    IRR_MIN_FREE = 2_000_000   # 200,000 تومان — زیر این = نرخ نیما یا خطا
+    IRR_MAX_FREE = 5_000_000   # 500,000 تومان — بالای این = خطا
     try:
         resp3 = _safe_get(
             "https://api.tgju.org/v1/market/indicator/summary-table-data/price_dollar_rl",
@@ -244,21 +248,24 @@ def get_usd_to_irr() -> float:
             data = resp3.json()
             rows = data.get("data", [])
             if rows:
-                price_str = rows[0].get("p") or rows[0].get("price") or rows[0].get("0")
+                # فیلدهای مختلف ممکن در پاسخ API
+                price_str = (rows[0].get("p") or rows[0].get("price") or
+                             rows[0].get("current") or rows[0].get("0"))
                 if price_str:
                     rate = float(str(price_str).replace(",", ""))
-                    if 1_500_000 < rate < 5_000_000:
+                    if IRR_MIN_FREE < rate < IRR_MAX_FREE:
                         logger.info(f"USD rate from tgju (API): {rate:,.0f} IRR ({rate/10:,.0f} تومان)")
                         return rate
                     else:
-                        logger.warning(f"tgju API rate out of expected range: {rate:,.0f} — skipping (نرخ نیما؟)")
+                        logger.warning(
+                            f"tgju API rate rejected: {rate:,.0f} IRR ({rate/10:,.0f} تومان) "
+                            f"— خارج از بازه آزاد (نرخ نیما؟)"
+                        )
     except Exception as e:
         logger.debug(f"tgju API error: {e}")
 
     # روش ۵: tgju.org — HTML scraping (fallback از API)
-    # نرخ دلار آزاد ایران: بازه معقول 150,000 تا 500,000 تومان = 1,500,000 تا 5,000,000 ریال
-    TOMAN_MIN = 1_500_000  # حداقل ۱۵۰ هزار تومان
-    TOMAN_MAX = 5_000_000  # حداکثر ۵۰۰ هزار تومان
+    # دلار آزاد باید بین 2,000,000 تا 5,000,000 ریال باشد
     try:
         resp4 = _safe_get(
             "https://www.tgju.org/profile/price_dollar_rl",
@@ -271,15 +278,18 @@ def get_usd_to_irr() -> float:
             if not match:
                 match = re.search(r'"p"\s*:\s*"(\d{6,8})"', resp4.text)
             if not match:
-                # جستجو عدد ۷ رقمی در بازه معقول دلار آزاد (۱.۵م تا ۵م ریال)
-                match = re.search(r'\b([1-4]\d{6})\b', resp4.text)
+                # عدد 7 رقمی که با 2 یا 3 شروع می‌شود (2M-3.9M ریال = 200k-390k تومان)
+                match = re.search(r'\b([23]\d{6})\b', resp4.text)
             if match:
                 rate = float(match.group(1))
-                if TOMAN_MIN < rate < TOMAN_MAX:
+                if IRR_MIN_FREE < rate < IRR_MAX_FREE:
                     logger.info(f"USD rate from tgju (HTML): {rate:,.0f} IRR ({rate/10:,.0f} تومان)")
                     return rate
                 else:
-                    logger.warning(f"tgju HTML rate out of range: {rate:,.0f} IRR — skipping")
+                    logger.warning(
+                        f"tgju HTML rate rejected: {rate:,.0f} IRR ({rate/10:,.0f} تومان) "
+                        f"— خارج از بازه آزاد"
+                    )
     except Exception as e:
         logger.debug(f"tgju HTML error: {e}")
 
