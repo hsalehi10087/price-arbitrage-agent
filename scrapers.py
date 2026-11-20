@@ -65,30 +65,83 @@ def get_usd_to_irr() -> float:
 # ═══════════════════════════════════════
 def get_aliexpress_price(query_en: str) -> Optional[float]:
     """
-    قیمت از علی‌اکسپرس — از API خلاصه‌ی عمومی
+    قیمت از علی‌اکسپرس — از API رسمی موبایل (بدون نیاز به کوکی)
     خروجی: قیمت دلار (float) یا None
     """
-    url = f"https://www.aliexpress.com/wholesale?trafficChannel=main&d=y&CatId=0&SearchText={requests.utils.quote(query_en)}&ltype=wholesale&SortType=default&page=1"
-    resp = _safe_get(url, timeout=20)
-    if not resp:
-        return None
+    # روش ۱: API موبایل علی‌اکسپرس
     try:
-        # الگو: "price":{"min":"1.5","max":"3.0"} یا "salePrice":{"minAmount":"2.5"...}
-        patterns = [
-            r'"minAmount":\s*"([\d.]+)"',
-            r'"min":\s*"([\d.]+)"',
-            r'"price":\s*"([\d.]+)"',
-            r'\$\s*([\d.]+)',
-        ]
-        for pat in patterns:
-            m = re.search(pat, resp.text)
-            if m:
-                price = float(m.group(1))
-                if 0.5 <= price <= 2000:
-                    logger.info(f"AliExpress [{query_en}]: ${price}")
-                    return price
+        url = f"https://m.aliexpress.com/api/searchweb/product/search?keywords={requests.utils.quote(query_en)}&sortType=default&page=1&pageSize=10"
+        headers = {
+            "User-Agent": "AliExpress/8.50.0 (Android 11; Mobile)",
+            "Accept": "application/json",
+            "bx-v": "2.5.14",
+        }
+        resp = requests.get(url, headers=headers, timeout=20)
+        if resp.status_code == 200:
+            data = resp.json()
+            items = (data.get("result", {}).get("resultList") or
+                     data.get("data", {}).get("products") or [])
+            prices = []
+            for item in items[:10]:
+                # ساختارهای مختلف API
+                price = (
+                    item.get("price") or
+                    item.get("salePrice") or
+                    item.get("skuPriceList", [{}])[0].get("skuVal", {}).get("skuAmount", {}).get("value") or
+                    item.get("itemInfo", {}).get("price")
+                )
+                if price:
+                    try:
+                        p = float(str(price).replace(",", "").replace("$", ""))
+                        if 0.5 <= p <= 2000:
+                            prices.append(p)
+                    except (ValueError, TypeError):
+                        pass
+            if prices:
+                result = min(prices)
+                logger.info(f"AliExpress mobile API [{query_en}]: ${result}")
+                return result
     except Exception as e:
-        logger.error(f"AliExpress parse error: {e}")
+        logger.debug(f"AliExpress mobile API failed: {e}")
+
+    # روش ۲: Scrape صفحه موبایل
+    try:
+        url2 = f"https://www.aliexpress.com/wholesale?SearchText={requests.utils.quote(query_en)}&SortType=total_tranpro_desc"
+        headers2 = {
+            "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15",
+            "Accept-Language": "en-US,en;q=0.9",
+            "Accept": "text/html,application/xhtml+xml",
+        }
+        resp2 = requests.get(url2, headers=headers2, timeout=20)
+        if resp2.status_code == 200:
+            text = resp2.text
+            # پیدا کردن قیمت‌های معتبر: "US $X.XX" یا "price":"X.XX"
+            patterns = [
+                r'US\s*\$\s*([\d]+\.[\d]{1,2})',
+                r'"formatedPrice":\s*"US\s*\$\s*([\d]+\.[\d]{1,2})"',
+                r'"price":\s*"([\d]+\.[\d]{1,2})"',
+                r'"minAmount":\s*"([\d]+\.[\d]{1,2})"',
+                r'"discountPrice":\s*"([\d]+\.[\d]{1,2})"',
+            ]
+            prices = []
+            for pat in patterns:
+                for m in re.findall(pat, text):
+                    try:
+                        p = float(m)
+                        if 0.5 <= p <= 2000:
+                            prices.append(p)
+                    except (ValueError, TypeError):
+                        pass
+                if prices:
+                    break
+            if prices:
+                result = sorted(prices)[len(prices) // 4]  # چارک اول = قیمت‌های پایین‌تر
+                logger.info(f"AliExpress scrape [{query_en}]: ${result}")
+                return result
+    except Exception as e:
+        logger.debug(f"AliExpress scrape failed: {e}")
+
+    logger.warning(f"AliExpress: no price found for [{query_en}]")
     return None
 
 # ═══════════════════════════════════════

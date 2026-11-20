@@ -233,48 +233,77 @@ def build_business_advisory(global_top5: list, local_top5: list, usd_rate: float
     return "".join(lines)
 
 
+def _fmt_rial(amount_toman: int) -> str:
+    """فرمت ریال (تومان × ۱۰)"""
+    rial = amount_toman * 10
+    if rial >= 1_000_000_000:
+        return f"{rial / 1_000_000_000:.1f}G ریال"
+    elif rial >= 1_000_000:
+        return f"{rial / 1_000_000:.0f}M ریال"
+    elif rial >= 1_000:
+        return f"{rial / 1_000:.0f}K ریال"
+    return f"{rial:,} ریال"
+
+
 def build_global_table(top5: list, usd_rate: float) -> str:
-    """ساخت جدول آربیتراژ بین‌المللی"""
+    """ساخت جدول آربیتراژ بین‌المللی با قیمت به ریال"""
     if not top5:
         return "⚠️ امروز فرصت آربیتراژ بین‌المللی یافت نشد.\n"
 
-    lines = ["🌍 <b>بهترین آربیتراژ خارج → ایران</b>\n"]
-    lines.append(f"💱 نرخ دلار: <b>{usd_rate / 10:,.0f} تومان</b>\n")
+    usd_toman = usd_rate / 10
+    lines = [
+        f"🌍 <b>آربیتراژ بین‌المللی (خارج ← ایران)</b>\n"
+        f"💱 دلار آزاد: <b>{usd_toman:,.0f} تومان</b> | <b>{usd_rate:,.0f} ریال</b>\n"
+        f"{'─'*30}\n"
+    ]
 
     for i, opp in enumerate(top5, 1):
         em = _margin_emoji(opp["margin_pct"])
         biz = _business_recommendation(opp["product"], opp["margin_pct"], "global")
+
+        # محاسبه ریال
+        ali_usd = opp['source_price_usd']
+        landed_rial = opp['landed_cost_toman'] * 10
+        iran_rial = opp['iran_market_price_toman'] * 10
+        profit_rial = opp['profit_toman'] * 10
+
         lines.append(
-            f"{em} <b>{i}. {opp['product']}</b> [{opp['category']}]\n"
-            f"   • قیمت چین: <code>${opp['source_price_usd']}</code>\n"
-            f"   • هزینه تمام‌شده ایران: <code>{_fmt_toman(opp['landed_cost_toman'])} تومان</code>\n"
-            f"   • قیمت بازار ایران: <code>{_fmt_toman(opp['iran_market_price_toman'])} تومان</code>\n"
-            f"   • سود هر واحد: <code>{_fmt_toman(opp['profit_toman'])} تومان</code>\n"
-            f"   • <b>حاشیه سود: {opp['margin_pct']:.0f}٪</b>\n"
-            f"   • پیشنهاد: {biz}\n"
+            f"\n{em} <b>{i}. {opp['product']}</b>  [{opp['category']}]\n"
+            f"┌ قیمت چین (علی‌اکسپرس): <code>${ali_usd:.1f}</code> = <code>{ali_usd * usd_rate / 10:,.0f} ریال</code>\n"
+            f"├ هزینه تمام‌شده (گمرک+ارسال): <code>{landed_rial:,.0f} ریال</code>\n"
+            f"├ قیمت بازار ایران: <code>{iran_rial:,.0f} ریال</code>\n"
+            f"├ 💰 سود خالص هر واحد: <b>{profit_rial:,.0f} ریال</b>\n"
+            f"└ 📈 حاشیه: <b>{opp['margin_pct']:.0f}٪</b>  |  {biz}\n"
         )
-    return "\n".join(lines)
+    return "".join(lines)
 
 
 def build_local_table(top5: list) -> str:
-    """ساخت جدول آربیتراژ داخلی"""
+    """ساخت جدول آربیتراژ داخلی با قیمت به ریال"""
     if not top5:
         return "⚠️ امروز فرصت آربیتراژ داخلی یافت نشد.\n"
 
-    lines = ["🏙️ <b>بهترین آربیتراژ آنلاین → اصفهان</b>\n"]
+    lines = [
+        f"🏙️ <b>آربیتراژ داخلی (آنلاین ← اصفهان)</b>\n"
+        f"{'─'*30}\n"
+    ]
 
     for i, opp in enumerate(top5, 1):
         em = _margin_emoji(opp["margin_pct"])
         biz = _business_recommendation(opp["product"], opp["margin_pct"], "local")
+
+        online_rial = opp['online_price_toman'] * 10
+        isfahan_rial = opp['isfahan_price_toman'] * 10
+        profit_rial = opp['profit_toman'] * 10
+
         lines.append(
-            f"{em} <b>{i}. {opp['product']}</b> [{opp['category']}]\n"
-            f"   • قیمت آنلاین: <code>{_fmt_toman(opp['online_price_toman'])} تومان</code>\n"
-            f"   • قیمت اصفهان: <code>{_fmt_toman(opp['isfahan_price_toman'])} تومان</code>\n"
-            f"   • سود هر واحد: <code>{_fmt_toman(opp['profit_toman'])} تومان</code>\n"
-            f"   • <b>حاشیه سود: {opp['margin_pct']:.0f}٪</b>\n"
-            f"   • پیشنهاد: {biz}\n"
+            f"\n{em} <b>{i}. {opp['product']}</b>  [{opp['category']}]\n"
+            f"┌ قیمت آنلاین (ترب/دیجی‌کالا): <code>{online_rial:,.0f} ریال</code>\n"
+            f"├ قیمت اصفهان (دیوار): <code>{isfahan_rial:,.0f} ریال</code>\n"
+            f"├ 💰 سود هر معامله: <b>{profit_rial:,.0f} ریال</b>\n"
+            f"└ 📈 حاشیه: <b>{opp['margin_pct']:.0f}٪</b>  |  {biz}\n"
         )
-    return "\n".join(lines)
+    return "".join(lines)
 
 
 def _build_best_idea_banner(best_idea: dict) -> str:
