@@ -267,9 +267,10 @@ def build_global_table(top5: list, usd_rate: float) -> str:
         iran_rial = opp['iran_market_price_toman'] * 10
         profit_rial = opp['profit_toman'] * 10
 
+        source_label = opp.get("foreign_source", "خارجی")
         lines.append(
             f"\n{em} <b>{i}. {opp['product']}</b>  [{opp['category']}]\n"
-            f"┌ قیمت چین (علی‌اکسپرس): <code>${ali_usd:.1f}</code> = <code>{ali_usd * usd_rate / 10:,.0f} ریال</code>\n"
+            f"┌ قیمت {source_label}: <code>${ali_usd:.1f}</code> = <code>{ali_usd * usd_rate / 10:,.0f} ریال</code>\n"
             f"├ هزینه تمام‌شده (گمرک+ارسال): <code>{landed_rial:,.0f} ریال</code>\n"
             f"├ قیمت بازار ایران: <code>{iran_rial:,.0f} ریال</code>\n"
             f"├ 💰 سود خالص هر واحد: <b>{profit_rial:,.0f} ریال</b>\n"
@@ -361,7 +362,8 @@ def build_full_report(results: dict, usd_rate: float, best_idea: dict = None) ->
 
     footer = (
         f"\n{'─' * 30}\n"
-        f"⚡ <i>قیمت‌ها از ترب، دیجی‌کالا، علی‌اکسپرس و دیوار اصفهان</i>\n"
+        f"⚡ <i>قیمت‌های خارجی: eBay → علی‌اکسپرس → قیمت پایه</i>\n"
+        f"⚡ <i>قیمت‌های ایران: ترب → دیجی‌کالا | دیوار اصفهان</i>\n"
         f"⚠️ <i>هزینه گمرک ۳۰٪ + ارسال ۵$ در محاسبه لحاظ شده</i>"
     )
 

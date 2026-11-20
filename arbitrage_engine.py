@@ -49,7 +49,8 @@ def calculate_global_arbitrage(
         "iran_market_price_toman": int(iran_toman),
         "profit_toman": int(profit_toman),
         "margin_pct": round(margin_pct, 1),
-        "source": "AliExpress → ترب/دیجی‌کالا",
+        "foreign_source": prices.get("foreign_source", "خارجی"),
+        "source": f"{prices.get('foreign_source', 'خارجی')} → ترب/دیجی‌کالا",
     }
 
 
