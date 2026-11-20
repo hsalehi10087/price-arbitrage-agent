@@ -67,19 +67,10 @@ def _safe_get(url, timeout=20, retries=2, headers=None):
 # ═══════════════════════════════════════
 # نرخ دلار آزاد
 # ═══════════════════════════════════════
-def _get_usd_from_telegram_channel() -> Optional[float]:
-    """قیمت دلار از کانال عمومی @DO_L4 (قیمت‌لحظه‌ای دلار طلا خودرو و سکه)
-    4.4 میلیون subscriber — کانال اصلی قیمت‌دهی لحظه‌ای دلار تهران
-
-    پیام‌های کانال شبیه این هستند:
-      دلار: 266,200 تومان
-      دلار فردایی تهران 💵 271,400 خرید
-
-    این کانال PUBLIC است — نیاز به عضویت bot ندارد.
-    از t.me/s/DO_L4 (web preview) استفاده می‌کنیم.
-    """
+def _scrape_telegram_usd(channel: str, patterns: list) -> Optional[float]:
+    """هلپر مشترک برای خواندن قیمت دلار از کانال‌های عمومی تلگرام."""
     try:
-        url = "https://t.me/s/DO_L4"
+        url = f"https://t.me/s/{channel}"
         resp = requests.get(
             url,
             headers={
@@ -89,18 +80,10 @@ def _get_usd_from_telegram_channel() -> Optional[float]:
             timeout=15,
         )
         if resp.status_code != 200:
-            logger.debug(f"t.me/s/DO_L4 failed: {resp.status_code}")
+            logger.debug(f"t.me/s/{channel} failed: {resp.status_code}")
             return None
 
         text = resp.text
-
-        # Pattern 1: "دلار: 266,200 تومان" یا "دلار فردایی: 266,200"
-        patterns = [
-            r'دلار\s*فردایی[^\d]*(\d{3}[,،]\d{3})',   # دلار فردایی ... 271,400
-            r'دلار\s*:\s*(\d{3}[,،]\d{3})\s*تومان',    # دلار: 266,200 تومان
-            r'دلار[^\d]{0,20}(\d{3}[,،]\d{3})',         # دلار ... 266,200
-        ]
-
         prices = []
         for pattern in patterns:
             for m in re.finditer(pattern, text):
@@ -115,31 +98,53 @@ def _get_usd_from_telegram_channel() -> Optional[float]:
                 break
 
         if prices:
-            # میانه قیمت‌های پیدا شده (برای دقت بیشتر)
             prices.sort()
             rate_toman = prices[len(prices) // 2]
             rate_irr = rate_toman * 10
-            logger.info(f"USD rate from @DO_L4: {rate_toman:,} تومان = {rate_irr:,} IRR")
+            logger.info(f"USD rate from @{channel}: {rate_toman:,} تومان = {rate_irr:,} IRR")
             return float(rate_irr)
 
-        logger.debug("No USD price found in @DO_L4 channel")
+        logger.debug(f"No USD price found in @{channel}")
         return None
 
     except Exception as e:
-        logger.debug(f"@DO_L4 channel parse error: {e}")
+        logger.debug(f"@{channel} parse error: {e}")
         return None
+
+
+def _get_usd_from_nerkhd() -> Optional[float]:
+    """قیمت دلار از کانال @NerkhDollarIRT
+    فرمت پیام: «دلار تهران⛳️: 266,200 فروش🔴» یا «دلار تهران⛳️: 266,500 خرید🔵»
+    کانال PUBLIC — نیاز به bot ندارد.
+    """
+    patterns = [
+        r'دلار\s*تهران[^:]*:\s*(\d{3}[,،]\d{3})',   # دلار تهران⛳️: 266,200
+        r'دلار[^\d]{0,30}(\d{3}[,،]\d{3})',           # fallback عمومی
+    ]
+    return _scrape_telegram_usd("NerkhDollarIRT", patterns)
+
+
+def _get_usd_from_dol4() -> Optional[float]:
+    """قیمت دلار از کانال @DO_L4 (4.4 میلیون subscriber)
+    فرمت پیام: «دلار: 266,200 تومان» یا «دلار فردایی تهران 💵 271,400 خرید»
+    """
+    patterns = [
+        r'دلار\s*فردایی[^\d]*(\d{3}[,،]\d{3})',
+        r'دلار\s*:\s*(\d{3}[,،]\d{3})\s*تومان',
+        r'دلار[^\d]{0,20}(\d{3}[,،]\d{3})',
+    ]
+    return _scrape_telegram_usd("DO_L4", patterns)
 
 
 def get_usd_to_irr() -> float:
     """نرخ دلار آزاد — زنجیره اولویت:
     ۰. GitHub Secret USD_IRR_RATE (همیشه دقیق)
-    ۱. کانال تلگرام «دلار و طلا» (قیمت فردایی لحظه‌ای)
-    ۲. bonbast.com
-    ۳. bonbast API
-    ۴. tgju.org API (فیلتر نرخ نیما)
-    ۵. tgju.org HTML (فیلتر نرخ نیما)
-    ۶. navasan.tech
-    ۷. fallback ثابت: ۲۷۰,۰۰۰ تومان
+    ۱. کانال تلگرام @NerkhDollarIRT (نرخ لحظه‌ای تهران)
+    ۲. کانال تلگرام @DO_L4 (4.4M subscriber)
+    ۳. bonbast.com
+    ۴. bonbast API
+    ۵. navasan.tech
+    ۶. fallback ثابت: ۲۷۰,۰۰۰ تومان
     """
     import os
 
@@ -157,28 +162,36 @@ def get_usd_to_irr() -> float:
         except Exception:
             pass
 
-    # روش ۱: کانال تلگرام «دلار و طلا» (قیمت لحظه‌ای بازار فردایی تهران)
+    # روش ۱: کانال @NerkhDollarIRT (نرخ لحظه‌ای بازار تهران)
     try:
-        tg_rate = _get_usd_from_telegram_channel()
-        if tg_rate:
-            return tg_rate
+        rate = _get_usd_from_nerkhd()
+        if rate:
+            return rate
     except Exception as e:
-        logger.debug(f"Telegram channel USD error: {e}")
+        logger.debug(f"@NerkhDollarIRT error: {e}")
 
-    # روش ۲: bonbast.com
+    # روش ۲: کانال @DO_L4 (4.4M subscriber — قیمت‌لحظه‌ای دلار طلا)
+    try:
+        rate = _get_usd_from_dol4()
+        if rate:
+            return rate
+    except Exception as e:
+        logger.debug(f"@DO_L4 error: {e}")
+
+    # روش ۳: bonbast.com
     try:
         resp = _safe_get("https://bonbast.com/", timeout=15)
         if resp:
             match = re.search(r'"usd1":\s*"?(\d{4,8})"?', resp.text)
             if match:
                 rate = int(match.group(1)) * 10  # تومان → ریال
-                if 1_000_000 < rate < 50_000_000:   # بازه معقول (۱۰۰ت تا ۵م تومان)
+                if 1_000_000 < rate < 50_000_000:
                     logger.info(f"USD rate from bonbast: {rate:,} IRR")
                     return float(rate)
     except Exception as e:
         logger.error(f"bonbast error: {e}")
 
-    # روش ۳: bonbast API
+    # روش ۴: bonbast API
     try:
         resp2 = _safe_get("https://api.bonbast.com/latest", timeout=10,
                           headers={"Accept": "application/json"})
@@ -194,68 +207,7 @@ def get_usd_to_irr() -> float:
     except Exception as e:
         logger.debug(f"bonbast API error: {e}")
 
-    # روش ۴: tgju.org API — نرخ دلار آزاد (price_dollar_rl)
-    # بازار آزاد ~270,000 تومان = 2,700,000 ریال
-    # نرخ نیما ~170,000 تومان = 1,700,000 ریال  ← باید رد شود
-    # بازه معتبر: 2,000,000 تا 5,000,000 ریال (200,000 تا 500,000 تومان)
-    IRR_MIN_FREE = 2_000_000   # 200,000 تومان — زیر این = نرخ نیما یا خطا
-    IRR_MAX_FREE = 5_000_000   # 500,000 تومان — بالای این = خطا
-    try:
-        resp3 = _safe_get(
-            "https://api.tgju.org/v1/market/indicator/summary-table-data/price_dollar_rl",
-            timeout=10,
-            headers={"Accept": "application/json", "Referer": "https://www.tgju.org/"}
-        )
-        if resp3:
-            data = resp3.json()
-            rows = data.get("data", [])
-            if rows:
-                # فیلدهای مختلف ممکن در پاسخ API
-                price_str = (rows[0].get("p") or rows[0].get("price") or
-                             rows[0].get("current") or rows[0].get("0"))
-                if price_str:
-                    rate = float(str(price_str).replace(",", ""))
-                    if IRR_MIN_FREE < rate < IRR_MAX_FREE:
-                        logger.info(f"USD rate from tgju (API): {rate:,.0f} IRR ({rate/10:,.0f} تومان)")
-                        return rate
-                    else:
-                        logger.warning(
-                            f"tgju API rate rejected: {rate:,.0f} IRR ({rate/10:,.0f} تومان) "
-                            f"— خارج از بازه آزاد (نرخ نیما؟)"
-                        )
-    except Exception as e:
-        logger.debug(f"tgju API error: {e}")
-
-    # روش ۵: tgju.org — HTML scraping (fallback از API)
-    # دلار آزاد باید بین 2,000,000 تا 5,000,000 ریال باشد
-    try:
-        resp4 = _safe_get(
-            "https://www.tgju.org/profile/price_dollar_rl",
-            timeout=12,
-            headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
-        )
-        if resp4:
-            # اول data-price (قابل اعتمادترین)
-            match = re.search(r'data-price=["\'](\d{6,8})["\']', resp4.text)
-            if not match:
-                match = re.search(r'"p"\s*:\s*"(\d{6,8})"', resp4.text)
-            if not match:
-                # عدد 7 رقمی که با 2 یا 3 شروع می‌شود (2M-3.9M ریال = 200k-390k تومان)
-                match = re.search(r'\b([23]\d{6})\b', resp4.text)
-            if match:
-                rate = float(match.group(1))
-                if IRR_MIN_FREE < rate < IRR_MAX_FREE:
-                    logger.info(f"USD rate from tgju (HTML): {rate:,.0f} IRR ({rate/10:,.0f} تومان)")
-                    return rate
-                else:
-                    logger.warning(
-                        f"tgju HTML rate rejected: {rate:,.0f} IRR ({rate/10:,.0f} تومان) "
-                        f"— خارج از بازه آزاد"
-                    )
-    except Exception as e:
-        logger.debug(f"tgju HTML error: {e}")
-
-    # روش ۶: navasan.tech
+    # روش ۵: navasan.tech
     try:
         resp5 = _safe_get("https://api.navasan.tech/latest/?api_key=free&item=usd_buy",
                           timeout=10, headers={"Accept": "application/json"})
@@ -270,7 +222,7 @@ def get_usd_to_irr() -> float:
     except Exception as e:
         logger.debug(f"navasan error: {e}")
 
-    # Fallback ثابت — آبان ۱۴۰۳ → آذر ۱۴۰۵: ۲۷۰,۰۰۰ تومان
+    # Fallback ثابت — آذر ۱۴۰۵: ۲۷۰,۰۰۰ تومان
     logger.warning("Using fallback USD rate: 2,700,000 IRR (270,000 تومان)")
     return 2_700_000.0
 
