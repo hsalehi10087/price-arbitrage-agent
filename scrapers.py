@@ -68,7 +68,25 @@ def _safe_get(url, timeout=20, retries=2, headers=None):
 # نرخ دلار آزاد
 # ═══════════════════════════════════════
 def get_usd_to_irr() -> float:
-    """نرخ دلار از bonbast.com (بازار آزاد)"""
+    """نرخ دلار از bonbast.com (بازار آزاد)
+    اگر block بود، از GitHub Secret یا fallback استفاده می‌کند
+    """
+    import os
+
+    # روش ۰: GitHub Secret (اولویت اول — همیشه دقیق)
+    env_rate = os.environ.get("USD_IRR_RATE")
+    if env_rate:
+        try:
+            rate = float(env_rate.replace(",", "").replace("_", ""))
+            # اگر تومان وارد شده (۲۷۰۰۰۰) → تبدیل به ریال
+            if rate < 500_000:
+                rate = rate * 10
+            if 1_000_000 < rate < 50_000_000:
+                logger.info(f"USD rate from env/secret: {rate:,.0f} IRR ({rate/10:,.0f} تومان)")
+                return rate
+        except Exception:
+            pass
+
     # روش ۱: bonbast.com
     try:
         resp = _safe_get("https://bonbast.com/", timeout=15)
@@ -76,13 +94,13 @@ def get_usd_to_irr() -> float:
             match = re.search(r'"usd1":\s*"?(\d{4,8})"?', resp.text)
             if match:
                 rate = int(match.group(1)) * 10  # تومان → ریال
-                if 400_000 < rate < 2_000_000:   # بازه معقول
+                if 1_000_000 < rate < 50_000_000:   # بازه معقول (۱۰۰ت تا ۵م تومان)
                     logger.info(f"USD rate from bonbast: {rate:,} IRR")
                     return float(rate)
     except Exception as e:
         logger.error(f"bonbast error: {e}")
 
-    # روش ۲: از API ساده‌تر
+    # روش ۲: bonbast API
     try:
         resp2 = _safe_get("https://api.bonbast.com/latest", timeout=10,
                           headers={"Accept": "application/json"})
@@ -92,15 +110,30 @@ def get_usd_to_irr() -> float:
             sell = usd.get("sell") or usd.get("1")
             if sell:
                 rate = int(str(sell).replace(",", "")) * 10
-                if 400_000 < rate < 2_000_000:
+                if 1_000_000 < rate < 50_000_000:
                     logger.info(f"USD rate from bonbast API: {rate:,} IRR")
                     return float(rate)
     except Exception as e:
         logger.debug(f"bonbast API error: {e}")
 
-    # Fallback ثابت (آبان ۱۴۰۳)
-    logger.warning("Using fallback USD rate: 840,000 IRR")
-    return 840_000.0
+    # روش ۳: navasan.tech (API رایگان برای نرخ ارز ایران)
+    try:
+        resp3 = _safe_get("https://api.navasan.tech/latest/?api_key=free&item=usd_buy",
+                          timeout=10, headers={"Accept": "application/json"})
+        if resp3:
+            data = resp3.json()
+            value = data.get("usd_buy", {}).get("value")
+            if value:
+                rate = float(str(value).replace(",", "")) * 10  # تومان → ریال
+                if 1_000_000 < rate < 50_000_000:
+                    logger.info(f"USD rate from navasan: {rate:,} IRR")
+                    return float(rate)
+    except Exception as e:
+        logger.debug(f"navasan error: {e}")
+
+    # Fallback ثابت — آبان ۱۴۰۳ → آذر ۱۴۰۵: ۲۷۰,۰۰۰ تومان
+    logger.warning("Using fallback USD rate: 2,700,000 IRR (270,000 تومان)")
+    return 2_700_000.0
 
 
 # ═══════════════════════════════════════

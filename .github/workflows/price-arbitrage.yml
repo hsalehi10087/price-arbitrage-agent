@@ -27,4 +27,7 @@ jobs:
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          # نرخ دلار آزاد — تومان (مثال: 270000)
+          # اگر set نشود، از bonbast.com یا navasan.tech می‌خواند
+          USD_IRR_RATE: ${{ secrets.USD_IRR_RATE }}
         run: python main.py
