@@ -141,9 +141,7 @@ def get_usd_to_irr() -> float:
     ۰. GitHub Secret USD_IRR_RATE (همیشه دقیق)
     ۱. کانال تلگرام @NerkhDollarIRT (نرخ لحظه‌ای تهران)
     ۲. کانال تلگرام @DO_L4 (4.4M subscriber)
-    ۳. bonbast API
-    ۴. navasan.tech
-    ۵. fallback ثابت: ۲۷۰,۰۰۰ تومان
+    ۳. fallback ثابت: ۲۷۰,۰۰۰ تومان
     """
     import os
 
@@ -177,36 +175,7 @@ def get_usd_to_irr() -> float:
     except Exception as e:
         logger.debug(f"@DO_L4 error: {e}")
 
-    # روش ۳: bonbast API
-    try:
-        resp2 = _safe_get("https://api.bonbast.com/latest", timeout=10,
-                          headers={"Accept": "application/json"})
-        if resp2:
-            data = resp2.json()
-            usd = data.get("usd", {})
-            sell = usd.get("sell") or usd.get("1")
-            if sell:
-                rate = int(str(sell).replace(",", "")) * 10
-                if 1_000_000 < rate < 50_000_000:
-                    logger.info(f"USD rate from bonbast API: {rate:,} IRR")
-                    return float(rate)
-    except Exception as e:
-        logger.debug(f"bonbast API error: {e}")
 
-    # روش ۵: navasan.tech
-    try:
-        resp5 = _safe_get("https://api.navasan.tech/latest/?api_key=free&item=usd_buy",
-                          timeout=10, headers={"Accept": "application/json"})
-        if resp5:
-            data = resp5.json()
-            value = data.get("usd_buy", {}).get("value")
-            if value:
-                rate = float(str(value).replace(",", "")) * 10  # تومان → ریال
-                if 1_000_000 < rate < 50_000_000:
-                    logger.info(f"USD rate from navasan: {rate:,} IRR")
-                    return float(rate)
-    except Exception as e:
-        logger.debug(f"navasan error: {e}")
 
     # Fallback ثابت — آذر ۱۴۰۵: ۲۷۰,۰۰۰ تومان
     logger.warning("Using fallback USD rate: 2,700,000 IRR (270,000 تومان)")
