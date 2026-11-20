@@ -96,6 +96,7 @@ def run_arbitrage_analysis(products_prices: List[dict], usd_rate: float) -> dict
     خروجی: دیکشنری با بهترین فرصت‌های هر نوع
     """
     global_opps = []
+    global_all = []   # همه کالاها (حتی مارجین منفی) برای نمایش
     local_opps = []
 
     for item in products_prices:
@@ -104,20 +105,27 @@ def run_arbitrage_analysis(products_prices: List[dict], usd_rate: float) -> dict
 
         g = calculate_global_arbitrage(product, prices, usd_rate)
         if g:
-            global_opps.append(g)
+            global_all.append(g)
+            if g["margin_pct"] > 0:
+                global_opps.append(g)
 
         l = calculate_local_arbitrage(product, prices)
         if l:
             local_opps.append(l)
 
     # مرتب‌سازی بر اساس حاشیه سود
+    global_all.sort(key=lambda x: x["margin_pct"], reverse=True)
     global_opps.sort(key=lambda x: x["margin_pct"], reverse=True)
     local_opps.sort(key=lambda x: x["margin_pct"], reverse=True)
 
+    # اگر فرصت مثبت وجود نداشت، top5 از همه (حتی منفی) نشان بده
+    top5_to_show = global_opps[:5] if global_opps else global_all[:5]
+
     return {
-        "global_top5": global_opps[:5],
+        "global_top5": top5_to_show,
         "local_top5": local_opps[:5],
         "total_scanned": len(products_prices),
         "global_found": len(global_opps),
         "local_found": len(local_opps),
+        "global_all_count": len(global_all),
     }

@@ -388,44 +388,50 @@ def build_hourly_snapshot(results: dict, usd_rate: float, best_idea: dict = None
     # بنر بهترین ایده روز (در صدر)
     best_banner = _build_best_idea_banner(best_idea) if best_idea else ""
 
-    # TOP 1 بین‌المللی
+    # TOP 5 بین‌المللی — با قیمت کامل
     global_part = ""
     if results["global_top5"]:
-        top_g = results["global_top5"][0]
-        em = _margin_emoji(top_g["margin_pct"])
-        biz = _business_recommendation(top_g["product"], top_g["margin_pct"], "global")
-        global_part = (
-            f"🌍 <b>برتر بین‌المللی این ساعت:</b>\n"
-            f"{em} <b>{top_g['product']}</b>  —  حاشیه: <b>{top_g['margin_pct']:.0f}٪</b>\n"
-            f"   قیمت چین: <code>${top_g['source_price_usd']:.1f}</code>  →  ایران: <code>{_fmt_toman(top_g['iran_market_price_toman'])} تومان</code>\n"
-            f"   سود: <code>{_fmt_toman(top_g['profit_toman'])} تومان/واحد</code>\n"
-            f"   {biz}\n"
-        )
+        usd_toman = usd_rate / 10
+        global_part = f"🌍 <b>آربیتراژ بین‌المللی (علی‌اکسپرس → ایران)</b>\n"
+        for i, opp in enumerate(results["global_top5"], 1):
+            em = _margin_emoji(opp["margin_pct"])
+            margin_str = f"{opp['margin_pct']:.0f}٪"
+            if opp["margin_pct"] < 0:
+                margin_str = f"<i>{margin_str}</i>"
+            global_part += (
+                f"\n{em} <b>{i}. {opp['product']}</b>\n"
+                f"   🛒 قیمت چین: <code>${opp['source_price_usd']:.1f}</code>"
+                f"  ≈ <code>{opp['source_price_usd'] * usd_toman:,.0f} تومان</code>\n"
+                f"   🏷 هزینه تمام‌شده (گمرک+ارسال): <code>{_fmt_toman(opp['landed_cost_toman'])} تومان</code>\n"
+                f"   🏪 قیمت ایران: <code>{_fmt_toman(opp['iran_market_price_toman'])} تومان</code>\n"
+                f"   💰 سود: <b>{_fmt_toman(opp['profit_toman'])} تومان</b>  |  حاشیه: <b>{margin_str}</b>\n"
+            )
     else:
-        global_part = "🌍 بین‌المللی: فرصت قابل‌توجهی این ساعت یافت نشد.\n"
+        global_part = "🌍 بین‌المللی: قیمت‌های کالا در دسترس نیست.\n"
 
     sep = f"\n{'─' * 25}\n\n"
 
-    # TOP 1 داخلی
+    # TOP 5 داخلی — با قیمت کامل
     local_part = ""
     if results["local_top5"]:
-        top_l = results["local_top5"][0]
-        em = _margin_emoji(top_l["margin_pct"])
-        biz = _business_recommendation(top_l["product"], top_l["margin_pct"], "local")
-        local_part = (
-            f"🏙️ <b>برتر داخلی این ساعت:</b>\n"
-            f"{em} <b>{top_l['product']}</b>  —  حاشیه: <b>{top_l['margin_pct']:.0f}٪</b>\n"
-            f"   آنلاین: <code>{_fmt_toman(top_l['online_price_toman'])} تومان</code>  →  اصفهان: <code>{_fmt_toman(top_l['isfahan_price_toman'])} تومان</code>\n"
-            f"   سود: <code>{_fmt_toman(top_l['profit_toman'])} تومان/معامله</code>\n"
-            f"   {biz}\n"
-        )
+        local_part = f"🏙️ <b>آربیتراژ داخلی (آنلاین → اصفهان)</b>\n"
+        for i, opp in enumerate(results["local_top5"], 1):
+            em = _margin_emoji(opp["margin_pct"])
+            local_part += (
+                f"\n{em} <b>{i}. {opp['product']}</b>\n"
+                f"   🌐 قیمت آنلاین: <code>{_fmt_toman(opp['online_price_toman'])} تومان</code>\n"
+                f"   📍 قیمت اصفهان: <code>{_fmt_toman(opp['isfahan_price_toman'])} تومان</code>\n"
+                f"   💰 سود: <b>{_fmt_toman(opp['profit_toman'])} تومان</b>  |  حاشیه: <b>{opp['margin_pct']:.0f}٪</b>\n"
+            )
     else:
         local_part = "🏙️ داخلی: فرصت قابل‌توجهی این ساعت یافت نشد.\n"
 
     # اشاره کوتاه به تعداد کل فرصت‌ها
+    intl_positive = results["global_found"]
+    intl_total = results.get("global_all_count", results["global_found"])
     summary_line = (
         f"\n{'─' * 25}\n"
-        f"📊 این ساعت: {results['global_found']} فرصت بین‌المللی | {results['local_found']} فرصت داخلی از {results['total_scanned']} کالا\n"
+        f"📊 این ساعت: {intl_positive} فرصت مثبت بین‌المللی (از {intl_total} کالا دارای قیمت) | {results['local_found']} فرصت داخلی\n"
         f"<i>گزارش کامل با مشاوره کسب‌وکار: ساعت ۸ صبح</i>"
     )
 
