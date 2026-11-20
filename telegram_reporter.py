@@ -335,16 +335,112 @@ def _build_best_idea_banner(best_idea: dict) -> str:
     return banner
 
 
+def build_export_table(export_top5: list, usd_rate: float, by_category: dict = None) -> str:
+    """ساخت جدول آربیتراژ صادراتی (ایران → بازارهای خارجی)"""
+    if not export_top5:
+        return "⚠️ فرصت صادراتی قابل‌توجهی یافت نشد.\n"
+
+    usd_toman = usd_rate / 10
+    lines = [
+        f"📦 <b>آربیتراژ صادراتی (ایران → بازارهای خارجی)</b>\n"
+        f"{'─'*30}\n"
+    ]
+
+    for i, opp in enumerate(export_top5, 1):
+        em = _margin_emoji(opp["margin_pct"])
+        note = f" {opp['note']}" if opp.get("note") else ""
+        lines.append(
+            f"\n{em} <b>{i}. {opp['product']}</b>  [{opp['category']}]\n"
+            f"┌ 🇮🇷 قیمت عمده ایران: <code>{_fmt_toman(opp['iran_cost_toman'])} تومان</code>\n"
+            f"├ {opp['market_flag']} قیمت بازار {opp['market_name']}: <code>${opp['target_price_usd']:.1f}</code>"
+            f"  = <code>{_fmt_toman(opp['revenue_toman'])} تومان</code>\n"
+            f"├ 🚚 حمل + گمرک: <code>${opp['shipping_usd']:.1f}</code>"
+            f"  = <code>{_fmt_toman(opp['shipping_toman'])} تومان</code>\n"
+            f"├ 💰 سود خالص هر واحد: <b>{_fmt_toman(opp['profit_toman'])} تومان</b>\n"
+            f"└ 📈 حاشیه: <b>{opp['margin_pct']:.0f}٪</b>  |  منبع: {opp['price_source']}{note}\n"
+        )
+
+    # خلاصه دسته‌بندی
+    if by_category:
+        lines.append(f"\n{'─'*25}\n📊 <b>خلاصه صادرات به تفکیک دسته:</b>\n")
+        for cat, opps in by_category.items():
+            if opps:
+                best = opps[0]
+                lines.append(
+                    f"  • {cat}: بهترین → {best['product']} → {best['market_name']} "
+                    f"(<b>{best['margin_pct']:.0f}٪</b>)\n"
+                )
+
+    return "".join(lines)
+
+
+def build_export_advisory(export_top5: list, usd_rate: float) -> str:
+    """مشاوره کسب‌وکار صادراتی"""
+    if not export_top5:
+        return ""
+
+    best = export_top5[0]
+    usd_toman = usd_rate / 10
+    profit = best["profit_toman"]
+
+    # سناریوهای درآمد
+    low = 20 * profit
+    mid = 50 * profit
+    high = 100 * profit
+
+    # راهنمای بازار هدف
+    market_guide = {
+        "UAE": "دبی‌مارت / noon.com / فروشگاه‌های ایرانیان مقیم امارات",
+        "Iraq": "بازار بغداد / اربیل / تجار ایرانی-عراقی",
+        "Afghanistan": "بازار کابل / هرات / تجار مرزی",
+        "UK": "Amazon UK / فروشگاه‌های ایرانیان مقیم انگلیس / Etsy",
+        "Germany": "Amazon DE / فروشگاه‌های ایرانیان مقیم آلمان",
+    }
+
+    guide = market_guide.get(best["market"], "کانال‌های تجاری محلی")
+
+    lines = [
+        f"\n{'═' * 30}\n",
+        f"💼 <b>مشاور صادرات: بهترین فرصت امروز</b>\n\n",
+        f"{best['market_flag']} <b>محصول: {best['product']}</b> → بازار: <b>{best['market_name']}</b>\n\n",
+        f"   📋 <b>نقشه راه صادرات:</b>\n",
+        f"   ۱. تامین محصول عمده از {_suggest_supplier(best['category'])}\n",
+        f"   ۲. بسته‌بندی صادراتی + برچسب‌گذاری ({best['market_name']})\n",
+        f"   ۳. گرفتن کد صادراتی از اتاق بازرگانی\n",
+        f"   ۴. ارسال با DHL / FedEx / کریر محلی\n",
+        f"   ۵. کانال فروش: {guide}\n",
+        f"\n   💰 <b>تخمین درآمد ماهانه:</b>\n",
+        f"   • سناریو محتاطانه (۲۰ فروش): <code>{_fmt_toman(low)} تومان</code>\n",
+        f"   • سناریو متوسط (۵۰ فروش): <code>{_fmt_toman(mid)} تومان</code>\n",
+        f"   • سناریو خوش‌بینانه (۱۰۰ فروش): <code>{_fmt_toman(high)} تومان</code>\n",
+        f"   ⚠️ ریسک: نوسان نرخ ارز، قوانین گمرکی مقصد، رقابت محلی\n",
+    ]
+
+    return "".join(lines)
+
+
+def _suggest_supplier(category: str) -> str:
+    """پیشنهاد منبع تامین برای هر دسته"""
+    suppliers = {
+        "کشاورزی": "کشاورزان مستقیم خراسان/فارس (بدون واسطه)",
+        "صنایع‌دستی": "تولیدکنندگان اصفهان/شیراز/تبریز",
+        "حیوانات‌خانگی": "کارخانه‌های تولید خوراک دام ایران",
+        "ساختمانی": "کارخانه‌های کاشی/سرامیک اصفهان/یزد",
+    }
+    return suppliers.get(category, "تولیدکنندگان داخلی")
+
+
 def build_full_report(results: dict, usd_rate: float, best_idea: dict = None) -> str:
     today = _jalali_today()
     total = results["total_scanned"]
     g_found = results["global_found"]
     l_found = results["local_found"]
+    e_found = results.get("export_found", 0)
 
     header = (
         f"📦 <b>گزارش کامل آربیتراژ قیمت</b>\n"
         f"📅 {today}\n"
-        f"🔍 {total} کالا بررسی شد | {g_found} فرصت بین‌المللی | {l_found} فرصت داخلی\n"
+        f"🔍 {total} کالا | {g_found} فرصت واردات | {l_found} داخلی | {e_found} صادراتی\n"
         f"{'─' * 30}\n\n"
     )
 
@@ -352,6 +448,16 @@ def build_full_report(results: dict, usd_rate: float, best_idea: dict = None) ->
     global_section = build_global_table(results["global_top5"], usd_rate)
     sep = f"\n{'─' * 30}\n\n"
     local_section = build_local_table(results["local_top5"])
+
+    # بخش صادرات
+    export_section = ""
+    export_top5 = results.get("export_top5", [])
+    if export_top5:
+        export_section = (
+            f"\n{'─' * 30}\n\n"
+            + build_export_table(export_top5, usd_rate, results.get("export_by_category"))
+            + build_export_advisory(export_top5, usd_rate)
+        )
 
     # بخش مشاوره کسب‌وکار — هوشمند و بر اساس داده روز
     advisory_section = build_business_advisory(
@@ -362,12 +468,12 @@ def build_full_report(results: dict, usd_rate: float, best_idea: dict = None) ->
 
     footer = (
         f"\n{'─' * 30}\n"
-        f"⚡ <i>قیمت‌های خارجی: eBay → علی‌اکسپرس → قیمت پایه</i>\n"
-        f"⚡ <i>قیمت‌های ایران: ترب → دیجی‌کالا → قیمت پایه ایران</i>\n"
-        f"⚠️ <i>هزینه گمرک ۳۰٪ + ارسال ۵$ در محاسبه لحاظ شده</i>"
+        f"⚡ <i>واردات: eBay → علی‌اکسپرس → قیمت پایه</i>\n"
+        f"⚡ <i>صادرات: noon.com → Amazon UK/DE → قیمت تخمینی</i>\n"
+        f"⚠️ <i>گمرک ۳۰٪ واردات | گمرک مقصد + حمل در صادرات لحاظ شده</i>"
     )
 
-    return header + best_banner + global_section + sep + local_section + advisory_section + footer
+    return header + best_banner + global_section + sep + local_section + export_section + advisory_section + footer
 
 
 def build_hourly_snapshot(results: dict, usd_rate: float, best_idea: dict = None) -> str:
@@ -426,16 +532,30 @@ def build_hourly_snapshot(results: dict, usd_rate: float, best_idea: dict = None
     else:
         local_part = "🏙️ داخلی: فرصت قابل‌توجهی این ساعت یافت نشد.\n"
 
+    # TOP 3 صادراتی — خلاصه
+    export_part = ""
+    export_top5 = results.get("export_top5", [])
+    if export_top5:
+        export_part = f"\n{'─' * 25}\n\n📦 <b>صادرات (ایران → خارج) — برترین‌ها</b>\n"
+        for i, opp in enumerate(export_top5[:3], 1):
+            em = _margin_emoji(opp["margin_pct"])
+            export_part += (
+                f"\n{em} <b>{i}. {opp['product']}</b>  {opp['market_flag']} {opp['market_name']}\n"
+                f"   💰 سود: <b>{_fmt_toman(opp['profit_toman'])} تومان</b>  |  "
+                f"حاشیه: <b>{opp['margin_pct']:.0f}٪</b>\n"
+            )
+
     # اشاره کوتاه به تعداد کل فرصت‌ها
     intl_positive = results["global_found"]
     intl_total = results.get("global_all_count", results["global_found"])
+    e_found = results.get("export_found", 0)
     summary_line = (
         f"\n{'─' * 25}\n"
-        f"📊 این ساعت: {intl_positive} فرصت مثبت بین‌المللی (از {intl_total} کالا دارای قیمت) | {results['local_found']} فرصت داخلی\n"
+        f"📊 این ساعت: {intl_positive} واردات | {results['local_found']} داخلی | {e_found} صادراتی\n"
         f"<i>گزارش کامل با مشاوره کسب‌وکار: ساعت ۸ صبح</i>"
     )
 
-    return header + best_banner + global_part + sep + local_part + summary_line
+    return header + best_banner + global_part + sep + local_part + export_part + summary_line
 
 
 def send_to_telegram(bot_token: str, chat_id: str, text: str) -> bool:

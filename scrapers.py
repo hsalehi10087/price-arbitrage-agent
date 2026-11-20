@@ -448,6 +448,170 @@ def get_divar_isfahan_price(query_fa: str) -> Optional[float]:
 
 
 # ═══════════════════════════════════════
+# Amazon UK / DE — برای قیمت بازارهای اروپا
+# ═══════════════════════════════════════
+def get_amazon_price(query: str, marketplace: str = "co.uk") -> Optional[float]:
+    """
+    قیمت از آمازون (UK یا DE)
+    marketplace: "co.uk" یا "de"
+    خروجی: قیمت دلار معادل (float) یا None
+    تبدیل نرخ: GBP/EUR به USD با نرخ تقریبی
+    """
+    # نرخ تبدیل تقریبی (fallback اگر نرخ لایو نداشتیم)
+    FX_TO_USD = {"co.uk": 1.27, "de": 1.09}  # GBP→USD, EUR→USD
+    fx_rate = FX_TO_USD.get(marketplace, 1.0)
+
+    try:
+        encoded_q = requests.utils.quote(query)
+        url = f"https://www.amazon.{marketplace}/s?k={encoded_q}&s=price-asc-rank"
+        headers = _get_headers({
+            "Accept-Language": "en-GB,en;q=0.9" if marketplace == "co.uk" else "de-DE,de;q=0.9",
+            "Referer": f"https://www.amazon.{marketplace}/",
+        })
+        resp = requests.get(url, headers=headers, timeout=20)
+        if resp.status_code != 200:
+            logger.debug(f"Amazon {marketplace} HTTP {resp.status_code}")
+            return None
+
+        text = resp.text
+        prices = []
+
+        # Pattern 1: JSON structured data
+        for m in re.finditer(r'"price":\{"amount":([\d.]+),"currency":"(?:GBP|EUR|USD)"', text):
+            try:
+                p = float(m.group(1))
+                if 0.5 <= p <= 2000:
+                    prices.append(p * fx_rate)
+            except (ValueError, TypeError):
+                pass
+
+        # Pattern 2: HTML price spans
+        if not prices:
+            for m in re.finditer(
+                r'class="a-price-whole"[^>]*>([\d,]+)',
+                text
+            ):
+                try:
+                    p = float(m.group(1).replace(",", ""))
+                    if 0.5 <= p <= 5000:
+                        prices.append(p * fx_rate)
+                except (ValueError, TypeError):
+                    pass
+
+        # Pattern 3: data-asin price
+        if not prices:
+            for m in re.finditer(r'"priceAmount":([\d.]+)', text):
+                try:
+                    p = float(m.group(1))
+                    if 0.5 <= p <= 2000:
+                        prices.append(p * fx_rate)
+                except (ValueError, TypeError):
+                    pass
+
+        if prices:
+            prices.sort()
+            # میانه پایین — نزدیک‌ترین به قیمت واقعی بازار
+            result = prices[len(prices) // 5] if len(prices) > 5 else prices[0]
+            logger.info(f"Amazon {marketplace} [{query[:30]}]: ${result:.2f} (from {len(prices)} results)")
+            return result
+
+    except Exception as e:
+        logger.warning(f"Amazon {marketplace} scrape error: {e}")
+
+    return None
+
+
+# ═══════════════════════════════════════
+# noon.com — بازار امارات
+# ═══════════════════════════════════════
+def get_noon_price(query: str) -> Optional[float]:
+    """
+    قیمت از noon.com (بازار امارات)
+    خروجی: قیمت USD (تبدیل از AED با نرخ ۳.۶۷)
+    """
+    AED_TO_USD = 1.0 / 3.67
+
+    try:
+        encoded_q = requests.utils.quote(query)
+        # noon.com public search API
+        url = f"https://www.noon.com/uae-en/search?q={encoded_q}&sort[by]=price&sort[dir]=asc"
+        headers = _get_headers({
+            "Accept-Language": "en-US,en;q=0.9",
+            "Referer": "https://www.noon.com/",
+        })
+        resp = requests.get(url, headers=headers, timeout=20)
+        if resp.status_code != 200:
+            logger.debug(f"noon.com HTTP {resp.status_code}")
+            return None
+
+        text = resp.text
+        prices = []
+
+        # Pattern 1: JSON price data in page
+        for m in re.finditer(r'"price":\s*"?([\d.]+)"?', text):
+            try:
+                p = float(m.group(1))
+                if 1.0 <= p <= 10000:  # AED range
+                    prices.append(p * AED_TO_USD)
+            except (ValueError, TypeError):
+                pass
+
+        # Pattern 2: AED price text
+        for m in re.finditer(r'AED\s*([\d,]+\.?\d*)', text):
+            try:
+                p = float(m.group(1).replace(",", ""))
+                if 1.0 <= p <= 10000:
+                    prices.append(p * AED_TO_USD)
+            except (ValueError, TypeError):
+                pass
+
+        if prices:
+            prices.sort()
+            result = prices[len(prices) // 5] if len(prices) > 5 else prices[0]
+            logger.info(f"noon.com [{query[:30]}]: ${result:.2f} USD (AED equiv)")
+            return result
+
+    except Exception as e:
+        logger.warning(f"noon.com scrape error: {e}")
+
+    return None
+
+
+def get_export_target_price(product: dict, market: str) -> Optional[float]:
+    """
+    قیمت بازار هدف برای یک محصول صادراتی
+    زنجیره: scraping → fallback از export_products.py
+    خروجی: قیمت USD
+    """
+    time.sleep(random.uniform(0.5, 1.5))
+
+    # تلاش scraping بر اساس بازار
+    scraped_price = None
+    if market == "UAE":
+        noon_q = product.get("noon_query", product.get("name", ""))
+        scraped_price = get_noon_price(noon_q)
+
+    elif market == "UK":
+        amz_q = product.get("amazon_uk_query", product.get("name", ""))
+        scraped_price = get_amazon_price(amz_q, marketplace="co.uk")
+
+    elif market in ("Germany",):
+        amz_q = product.get("amazon_de_query", product.get("name", ""))
+        scraped_price = get_amazon_price(amz_q, marketplace="de")
+
+    if scraped_price and scraped_price > 0:
+        return scraped_price
+
+    # Fallback: قیمت‌های تخمینی از export_products.py
+    fallback = product.get("target_markets", {}).get(market, {}).get("price_usd")
+    if fallback:
+        logger.info(f"Export fallback price [{product.get('id','')}→{market}]: ${fallback}")
+        return float(fallback)
+
+    return None
+
+
+# ═══════════════════════════════════════
 # قیمت نهایی هر کالا
 # ═══════════════════════════════════════
 def get_all_prices(product: dict) -> dict:

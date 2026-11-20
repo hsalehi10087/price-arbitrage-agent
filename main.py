@@ -15,8 +15,9 @@ from pathlib import Path
 from typing import List
 
 from products import PRODUCTS
-from scrapers import get_all_prices, get_usd_to_irr
-from arbitrage_engine import run_arbitrage_analysis
+from export_products import EXPORT_PRODUCTS
+from scrapers import get_all_prices, get_usd_to_irr, get_export_target_price
+from arbitrage_engine import run_arbitrage_analysis, run_export_analysis
 from telegram_reporter import (
     build_full_report,
     build_hourly_snapshot,
@@ -116,9 +117,35 @@ def main():
         products_prices.append({"product": product, "prices": prices})
         time.sleep(1.5)
 
-    # ── تحلیل آربیتراژ ──
+    # ── تحلیل آربیتراژ واردات ──
     results = run_arbitrage_analysis(products_prices, usd_rate)
     logger.info(f"فرصت‌های بین‌المللی: {results['global_found']} | داخلی: {results['local_found']}")
+
+    # ── اسکن محصولات صادراتی (فقط در گزارش کامل — برای صرفه‌جویی در time) ──
+    export_results = {"top5_export": [], "by_category": {}, "total_scanned": 0, "total_found": 0}
+    if is_full:
+        logger.info(f"اسکن {len(EXPORT_PRODUCTS)} محصول صادراتی ...")
+        for product in EXPORT_PRODUCTS:
+            # قیمت‌های scrape شده رو در target_markets به‌روز می‌کنیم
+            for market in list(product.get("target_markets", {}).keys()):
+                if market == "USA":
+                    continue
+                scraped = get_export_target_price(product, market)
+                if scraped:
+                    product["target_markets"][market]["price_usd"] = scraped
+                    product["target_markets"][market]["source"] = f"live-{market.lower()}"
+            time.sleep(1.0)
+
+        export_results = run_export_analysis(EXPORT_PRODUCTS, usd_rate)
+        logger.info(f"فرصت‌های صادراتی: {export_results['total_found']}")
+    else:
+        # در اسنپ‌شات ساعتی فقط از قیمت fallback استفاده می‌کنیم
+        export_results = run_export_analysis(EXPORT_PRODUCTS, usd_rate)
+
+    # ترکیب نتایج صادراتی با results
+    results["export_top5"] = export_results.get("top5_export", [])
+    results["export_found"] = export_results.get("total_found", 0)
+    results["export_by_category"] = export_results.get("by_category", {})
 
     # ── آپدیت بهترین ایده روز ──
     if is_full:
@@ -144,6 +171,8 @@ def main():
         logger.info(f"  🌍 {opp['product']}: {opp['margin_pct']:.0f}٪")
     for opp in results["local_top5"][:3]:
         logger.info(f"  🏙️ {opp['product']}: {opp['margin_pct']:.0f}٪")
+    for opp in results.get("export_top5", [])[:3]:
+        logger.info(f"  📦 {opp['product']} → {opp['market_name']}: {opp['margin_pct']:.0f}٪")
 
 
 if __name__ == "__main__":
